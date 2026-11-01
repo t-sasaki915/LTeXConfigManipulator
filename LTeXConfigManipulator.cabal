@@ -28,8 +28,7 @@ executable LTeXConfigManipulator
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      LTeXConfigManipulator
-    , base >=4.7 && <5
+      base >=4.7 && <5
     , aeson >=2.2 && <2.3
     , text >=2.1 && <2.2
     , optparse-applicative >=0.18 && <0.19
