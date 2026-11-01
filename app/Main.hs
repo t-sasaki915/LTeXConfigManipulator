@@ -338,5 +338,5 @@ main = do
     programme
     where
         opts = info (commandParser <**> helper)
-            (fullDesc <> progDesc "A small tool for vim-lsp to manipulate ltex configuration.")
+            (fullDesc <> progDesc "A command-line tool for managing project-specific LTeX+ configurations with a focus on Vim integration.")
 
