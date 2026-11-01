@@ -151,11 +151,13 @@ parseShowConfigOption x = Left ("Unexpected argument: " <> x)
 
 showConfigOptionParser :: Parser ShowConfigOption
 showConfigOptionParser =
-    argument (eitherReader parseShowConfigOption) (metavar "ENTRY" <> help "Config entry to show")
+    argument (eitherReader parseShowConfigOption)
+        (metavar "ENTRY" <> help "Config entry to show (all / language / dictionary)")
 
 setLanguageOptionParser :: Parser LTeXLanguage
 setLanguageOptionParser =
-    argument (eitherReader parseLTeXLanguage) (metavar "LANGUAGE" <> help "Language to set")
+    argument (eitherReader parseLTeXLanguage)
+        (metavar "LANGUAGE" <> help "Language to set (e.g. en-GB, ja-JP)")
 
 registerCorrectWordOptionParser :: Parser Text
 registerCorrectWordOptionParser =
@@ -175,7 +177,7 @@ commandParser =
     hsubparser
         ( command "show"
             ( info (ShowConfig <$> showConfigOptionParser)
-                (progDesc "Show current configuration (all / language / dictionary)"))
+                (progDesc "Show current configuration"))
 
        <> command "language"
             ( info (SetLanguage <$> setLanguageOptionParser)
