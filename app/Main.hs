@@ -147,8 +147,8 @@ defaultLTeXConfig = LTeXConfig
     , dictionary = []
     }
 
-type TexFilePath     = FilePath
-type ProjectRootPath = FilePath
+data TexFilePath     = TexFilePath FilePath
+data ProjectRootPath = ProjectRootPath FilePath
 
 data ShowConfigEntry = ShowAll | ShowLanguage | ShowDictionary deriving (Show, Eq)
 
@@ -159,7 +159,7 @@ parseShowConfigEntry "dictionary" = Right ShowDictionary
 parseShowConfigEntry x            = Left ("Unexpected argument: " <> x)
 
 texFileOptionParser :: Parser TexFilePath
-texFileOptionParser = strOption
+texFileOptionParser = TexFilePath <$> strOption
     ( long "texFile"
    <> metavar "FILEPATH"
    <> help "The path to the .tex (or .bib) file that you are currently editing"
@@ -236,20 +236,20 @@ searchDirectoryUpwards predicate directory =
                     else pure Nothing
 
 searchForProjectRoot :: TexFilePath -> IO ProjectRootPath
-searchForProjectRoot texFilePath = do
+searchForProjectRoot (TexFilePath texFilePath) = do
     absolutePath  <- makeAbsolute texFilePath
     canonicalPath <- canonicalizePath absolutePath
     let startDirectory = takeDirectory canonicalPath
 
     searchDirectoryUpwards hasLTeXFile startDirectory >>= \case
-        Just projRoot -> pure projRoot
+        Just projRoot -> pure (ProjectRootPath projRoot)
         Nothing       ->
             searchDirectoryUpwards hasGitFile startDirectory >>= \case
-                Just projRoot -> pure projRoot
-                Nothing       -> pure startDirectory
+                Just projRoot -> pure (ProjectRootPath projRoot)
+                Nothing       -> pure (ProjectRootPath startDirectory)
 
 getLTeXConfig :: ProjectRootPath -> IO (Either String LTeXConfig)
-getLTeXConfig projRoot =
+getLTeXConfig (ProjectRootPath projRoot) =
     let configFilePath = projRoot </> ".ltex" </> "config.json" in
         doesFileExist configFilePath >>= \case
             True ->
@@ -260,13 +260,13 @@ getLTeXConfig projRoot =
                 pure (Right defaultLTeXConfig)
 
 writeLTeXConfig :: ProjectRootPath -> LTeXConfig -> IO ()
-writeLTeXConfig projRoot newConfig =
+writeLTeXConfig (ProjectRootPath projRoot) newConfig =
     let configFileDir = projRoot </> ".ltex"
         configFilePath = configFileDir </> "config.json" in
             createDirectoryIfMissing True configFileDir >>
                 BS.writeFile configFilePath (encode newConfig)
 
-withProjectRoot :: TexFilePath -> (FilePath -> IO ()) -> IO ()
+withProjectRoot :: TexFilePath -> (ProjectRootPath -> IO ()) -> IO ()
 withProjectRoot texFilePath programme =
     searchForProjectRoot texFilePath >>=
         programme
@@ -279,7 +279,9 @@ withLTeXConfig texFilePath programme =
             Left err     -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
 
 showProjectRoot :: TexFilePath -> IO ()
-showProjectRoot texFilePath = withProjectRoot texFilePath putStrLn
+showProjectRoot texFilePath =
+    withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->
+        putStrLn projRoot
 
 showConfig :: (TexFilePath, ShowConfigEntry) -> IO ()
 showConfig (texFilePath, showConfigEntry) =
@@ -303,10 +305,28 @@ setLanguage (texFilePath, newLanguage) =
             writeLTeXConfig projRoot newConfig
 
 registerCorrectWord :: (TexFilePath, Text) -> IO ()
-registerCorrectWord x = putStrLn $ "registerCorrectWord " <> show x
+registerCorrectWord (texFilePath, newWord) =
+    withLTeXConfig texFilePath $ \(oldConfig, projRoot) ->
+        let currentDict = dictionary oldConfig in
+            case newWord `elem` currentDict of
+                False ->
+                    let newConfig = oldConfig { dictionary = currentDict <> [newWord] } in
+                        writeLTeXConfig projRoot newConfig
+
+                True ->
+                    TextIO.putStrLn $ "'" <> newWord <> "' is already registered."
 
 registerWrongWord :: (TexFilePath, Text) -> IO ()
-registerWrongWord x = putStrLn $ "registerWrongWord " <> show x
+registerWrongWord (texFilePath, wrongWord) =
+    withLTeXConfig texFilePath $ \(oldConfig, projRoot) ->
+        let currentDict = dictionary oldConfig in
+            case wrongWord `elem` currentDict of
+                True ->
+                    let newConfig = oldConfig { dictionary = filter (/= wrongWord) currentDict } in
+                        writeLTeXConfig projRoot newConfig
+
+                False ->
+                    TextIO.putStrLn $ "'" <> wrongWord <> "' is not in the dictionary."
 
 main :: IO ()
 main = do
