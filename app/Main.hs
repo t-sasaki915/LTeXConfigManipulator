@@ -2,6 +2,7 @@ module Main (main) where
 
 import Data.Aeson
 import Data.Aeson.Types (prependFailure, unexpected)
+import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Options.Applicative hiding (Success)
@@ -129,6 +130,7 @@ data LTeXConfig = LTeXConfig
     { language   :: LTeXLanguage
     , dictionary :: [Text]
     }
+    deriving (Show, Eq)
 
 instance ToJSON LTeXConfig where
     toJSON conf = object ["language" .= (language conf), "dictionary" .= (dictionary conf)]
@@ -246,14 +248,37 @@ searchForProjectRoot texFilePath = do
         False ->
             pure Nothing
 
-showProjectRoot :: FilePath -> IO ()
-showProjectRoot texFilePath =
+getLTeXConfig :: FilePath -> IO (Either String LTeXConfig)
+getLTeXConfig projRoot =
+    let configFilePath = projRoot </> ".ltex" </> "config.json" in
+        doesFileExist configFilePath >>= \case
+            True ->
+                BS.readFile configFilePath >>=
+                    pure . eitherDecode
+
+            False ->
+                pure (Right defaultLTeXConfig)
+
+withProjectRoot :: FilePath -> (FilePath -> IO ()) -> IO ()
+withProjectRoot texFilePath programme =
     searchForProjectRoot texFilePath >>= \case
-        Just projRoot -> putStrLn projRoot
-        Nothing       -> putStrLn "Failed to find the project root" >> exitFailure
+        Just projRoot -> programme projRoot
+        Nothing       -> putStrLn "Failed to determine the project root" >> exitFailure
+
+withLTeXConfig :: FilePath -> (LTeXConfig -> IO()) -> IO ()
+withLTeXConfig texFilePath programme =
+    withProjectRoot texFilePath $ \projRoot ->
+        getLTeXConfig projRoot >>= \case
+            Right config -> programme config
+            Left err     -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
+
+showProjectRoot :: FilePath -> IO ()
+showProjectRoot texFilePath = withProjectRoot texFilePath putStrLn
 
 showConfig :: (FilePath, ShowConfigEntry) -> IO ()
-showConfig x = putStrLn $ "showConfig " <> show x
+showConfig (texFilePath, showConfigEntry) =
+    withLTeXConfig texFilePath $ \ltexConfig ->
+        print ltexConfig
 
 setLanguage :: (FilePath, LTeXLanguage) -> IO ()
 setLanguage x = putStrLn $ "setLanguage " <> show x
