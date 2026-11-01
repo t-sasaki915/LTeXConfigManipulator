@@ -5,8 +5,9 @@ import Data.Aeson.Types (prependFailure, unexpected)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Options.Applicative hiding (Success)
-import System.Directory (getCurrentDirectory)
+import System.Directory
 import System.Exit (exitFailure)
+import System.FilePath ((</>), takeDirectory)
 
 data LTeXLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanValencian | Chinese
                   | Danish | Dutch | DutchBelgium | English | EnglishAustralian | EnglishCanadian
@@ -143,37 +144,48 @@ defaultLTeXConfig = LTeXConfig
     , dictionary = []
     }
 
-data ShowConfigOption = ShowAll | ShowLanguage | ShowDictionary deriving (Show, Eq)
+data ShowConfigEntry = ShowAll | ShowLanguage | ShowDictionary deriving (Show, Eq)
 
-parseShowConfigOption :: String -> Either String ShowConfigOption
-parseShowConfigOption "all"        = Right ShowAll
-parseShowConfigOption "language"   = Right ShowLanguage
-parseShowConfigOption "dictionary" = Right ShowDictionary
-parseShowConfigOption x            = Left ("Unexpected argument: " <> x)
+parseShowConfigEntry :: String -> Either String ShowConfigEntry
+parseShowConfigEntry "all"        = Right ShowAll
+parseShowConfigEntry "language"   = Right ShowLanguage
+parseShowConfigEntry "dictionary" = Right ShowDictionary
+parseShowConfigEntry x            = Left ("Unexpected argument: " <> x)
 
-showConfigOptionParser :: Parser ShowConfigOption
-showConfigOptionParser =
-    argument (eitherReader parseShowConfigOption)
-        (metavar "ENTRY" <> help "Config entry to show (all / language / dictionary)")
+texFileOptionParser :: Parser FilePath
+texFileOptionParser = strOption
+    ( long "texFile"
+   <> metavar "FILEPATH"
+   <> help "The path to the .tex (or .bib) file that you are currently editing"
+    )
 
-setLanguageOptionParser :: Parser LTeXLanguage
-setLanguageOptionParser =
-    argument (eitherReader parseLTeXLanguage)
-        (metavar "LANGUAGE" <> help "Language to set (e.g. en-GB, ja-JP)")
+showConfigOptionParser :: Parser (FilePath, ShowConfigEntry)
+showConfigOptionParser = (,)
+    <$> texFileOptionParser
+    <*> argument (eitherReader parseShowConfigEntry)
+            (metavar "ENTRY" <> help "Config entry to show (all / language / dictionary)")
 
-registerCorrectWordOptionParser :: Parser Text
-registerCorrectWordOptionParser =
-    strArgument (metavar "WORD" <> help "Word to register as correct")
+setLanguageOptionParser :: Parser (FilePath, LTeXLanguage)
+setLanguageOptionParser = (,)
+    <$> texFileOptionParser
+    <*> argument (eitherReader parseLTeXLanguage)
+            (metavar "LANGUAGE" <> help "Language to set (e.g. en-GB, ja-JP)")
 
-registerWrongWordOptionParser :: Parser Text
-registerWrongWordOptionParser =
-    strArgument (metavar "WORD" <> help "Word to register as wrong")
+registerCorrectWordOptionParser :: Parser (FilePath, Text)
+registerCorrectWordOptionParser = (,)
+    <$> texFileOptionParser
+    <*> strArgument (metavar "WORD" <> help "Word to register as correct")
+
+registerWrongWordOptionParser :: Parser (FilePath, Text)
+registerWrongWordOptionParser = (,)
+    <$> texFileOptionParser
+    <*> strArgument (metavar "WORD" <> help "Word to register as wrong")
 
 commandParser :: Parser (IO ())
 commandParser =
     hsubparser
         ( command "projectRoot"
-            (info (pure showProjectRoot)
+            (info (showProjectRoot <$> texFileOptionParser)
                 (progDesc "Show project root"))
 
        <> command "show"
@@ -193,28 +205,63 @@ commandParser =
                 (progDesc "Unregister a word from dictionary"))
         )
 
-searchForProjectRoot :: IO (Maybe FilePath)
-searchForProjectRoot = do
-    currentDirectory <- getCurrentDirectory
+hasLTeXFile :: FilePath -> IO Bool
+hasLTeXFile directory = do
+    hasLTeXRoot      <- doesFileExist      (directory </> ".ltex-root")
+    hasLTeXDirectory <- doesDirectoryExist (directory </> ".ltex")
 
-    pure (Just currentDirectory)
+    pure (hasLTeXRoot || hasLTeXDirectory)
 
-showProjectRoot :: IO ()
-showProjectRoot =
-    searchForProjectRoot >>= \case
-        Just projectRoot -> putStrLn projectRoot
-        Nothing          -> putStrLn "Failed to find project root" >> exitFailure
+hasGitFile :: FilePath -> IO Bool
+hasGitFile directory = do
+    hasDotGitDirectory <- doesDirectoryExist (directory </> ".git")
+    hasDotGitFile      <- doesFileExist      (directory </> ".git")
 
-showConfig :: ShowConfigOption -> IO ()
+    pure (hasDotGitDirectory || hasDotGitFile)
+
+searchDirectoryUpwards :: (FilePath -> IO Bool) -> FilePath -> IO (Maybe FilePath)
+searchDirectoryUpwards predicate directory =
+    predicate directory >>= \case
+        True  -> pure (Just directory)
+        False ->
+            let parent = takeDirectory directory in
+                if parent /= directory
+                    then searchDirectoryUpwards predicate parent
+                    else pure Nothing
+
+searchForProjectRoot :: FilePath -> IO (Maybe FilePath)
+searchForProjectRoot texFilePath = do
+    absolutePath  <- makeAbsolute texFilePath
+    canonicalPath <- canonicalizePath absolutePath
+    let startDirectory = takeDirectory canonicalPath
+
+    doesDirectoryExist startDirectory >>= \case
+        True ->
+            searchDirectoryUpwards hasLTeXFile startDirectory >>= \case
+                Just projRoot -> pure (Just projRoot)
+                Nothing       ->
+                    searchDirectoryUpwards hasGitFile startDirectory >>= \case
+                        Just projRoot -> pure (Just projRoot)
+                        Nothing       -> pure (Just startDirectory)
+        False ->
+            pure Nothing
+
+showProjectRoot :: FilePath -> IO ()
+showProjectRoot texFilePath =
+    searchForProjectRoot texFilePath >>= \case
+        Just projRoot -> putStrLn projRoot
+        Nothing       -> putStrLn "Failed to find the project root" >> exitFailure
+
+showConfig :: (FilePath, ShowConfigEntry) -> IO ()
 showConfig x = putStrLn $ "showConfig " <> show x
 
-setLanguage :: LTeXLanguage -> IO ()
+setLanguage :: (FilePath, LTeXLanguage) -> IO ()
 setLanguage x = putStrLn $ "setLanguage " <> show x
 
-registerCorrectWord :: Text -> IO ()
+registerCorrectWord :: (FilePath, Text) -> IO ()
 registerCorrectWord x = putStrLn $ "registerCorrectWord " <> show x
 
-registerWrongWord :: Text -> IO ()
+registerWrongWord :: (FilePath, Text) -> IO ()
 registerWrongWord x = putStrLn $ "registerWrongWord " <> show x
 
 main :: IO ()
