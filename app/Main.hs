@@ -5,6 +5,8 @@ import Data.Aeson.Types (prependFailure, unexpected)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Options.Applicative hiding (Success)
+import System.Directory (getCurrentDirectory)
+import System.Exit (exitFailure)
 
 data LTeXLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanValencian | Chinese
                   | Danish | Dutch | DutchBelgium | English | EnglishAustralian | EnglishCanadian
@@ -144,10 +146,10 @@ defaultLTeXConfig = LTeXConfig
 data ShowConfigOption = ShowAll | ShowLanguage | ShowDictionary deriving (Show, Eq)
 
 parseShowConfigOption :: String -> Either String ShowConfigOption
-parseShowConfigOption "all" = Right ShowAll
-parseShowConfigOption "language" = Right ShowLanguage
+parseShowConfigOption "all"        = Right ShowAll
+parseShowConfigOption "language"   = Right ShowLanguage
 parseShowConfigOption "dictionary" = Right ShowDictionary
-parseShowConfigOption x = Left ("Unexpected argument: " <> x)
+parseShowConfigOption x            = Left ("Unexpected argument: " <> x)
 
 showConfigOptionParser :: Parser ShowConfigOption
 showConfigOptionParser =
@@ -170,7 +172,11 @@ registerWrongWordOptionParser =
 commandParser :: Parser (IO ())
 commandParser =
     hsubparser
-        ( command "show"
+        ( command "projectRoot"
+            (info (pure showProjectRoot)
+                (progDesc "Show project root"))
+
+       <> command "show"
             (info (showConfig <$> showConfigOptionParser)
                 (progDesc "Show current configuration"))
 
@@ -186,6 +192,18 @@ commandParser =
             (info (registerWrongWord <$> registerWrongWordOptionParser)
                 (progDesc "Unregister a word from dictionary"))
         )
+
+searchForProjectRoot :: IO (Maybe FilePath)
+searchForProjectRoot = do
+    currentDirectory <- getCurrentDirectory
+
+    pure (Just currentDirectory)
+
+showProjectRoot :: IO ()
+showProjectRoot =
+    searchForProjectRoot >>= \case
+        Just projectRoot -> putStrLn projectRoot
+        Nothing          -> putStrLn "Failed to find project root" >> exitFailure
 
 showConfig :: ShowConfigOption -> IO ()
 showConfig x = putStrLn $ "showConfig " <> show x
