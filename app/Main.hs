@@ -1,8 +1,9 @@
 module Main (main) where
 
 import Lib
-import Data.Aeson (Value(..), ToJSON(..), FromJSON(..))
+import Data.Aeson
 import Data.Aeson.Types (prependFailure, unexpected)
+import Data.Text (Text)
 
 data LTeXLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanValencian | Chinese
                   | Danish | Dutch | DutchBelgium | English | EnglishAustralian | EnglishCanadian
@@ -114,8 +115,17 @@ instance FromJSON LTeXLanguage where
     parseJSON invalid = prependFailure "parsing LTeXLanguage failed, " (unexpected invalid)
 
 data LTeXConfig = LTeXConfig
-    { language :: LTeXLanguage
+    { language   :: LTeXLanguage
+    , dictionary :: [Text]
     }
+
+instance ToJSON LTeXConfig where
+    toJSON conf = object ["language" .= (language conf), "dictionary" .= (dictionary conf)]
+
+instance FromJSON LTeXConfig where
+    parseJSON = withObject "LTeXConfig" $ \v -> LTeXConfig
+        <$> v .: "language"
+        <*> v .: "dictionary"
 
 main :: IO ()
 main = someFunc
