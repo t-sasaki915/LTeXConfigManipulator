@@ -1,0 +1,48 @@
+cabal-version: 2.2
+
+name:           LTeXConfigManipulator
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/t-sasaki915/LTeXConfigManipulator#readme>
+homepage:       https://github.com/t-sasaki915/LTeXConfigManipulator#readme
+bug-reports:    https://github.com/t-sasaki915/LTeXConfigManipulator/issues
+author:         Toma Sasaki
+maintainer:     netst915@gmail.com
+copyright:      2026 Toma Sasaki
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/t-sasaki915/LTeXConfigManipulator
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_LTeXConfigManipulator
+  autogen-modules:
+      Paths_LTeXConfigManipulator
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+  default-language: Haskell2010
+
+executable LTeXConfigManipulator-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_LTeXConfigManipulator
+  autogen-modules:
+      Paths_LTeXConfigManipulator
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      LTeXConfigManipulator
+    , base >=4.7 && <5
+  default-language: Haskell2010
+
