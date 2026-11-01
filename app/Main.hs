@@ -147,6 +147,9 @@ defaultLTeXConfig = LTeXConfig
     , dictionary = []
     }
 
+type TexFilePath     = FilePath
+type ProjectRootPath = FilePath
+
 data ShowConfigEntry = ShowAll | ShowLanguage | ShowDictionary deriving (Show, Eq)
 
 parseShowConfigEntry :: String -> Either String ShowConfigEntry
@@ -155,31 +158,31 @@ parseShowConfigEntry "language"   = Right ShowLanguage
 parseShowConfigEntry "dictionary" = Right ShowDictionary
 parseShowConfigEntry x            = Left ("Unexpected argument: " <> x)
 
-texFileOptionParser :: Parser FilePath
+texFileOptionParser :: Parser TexFilePath
 texFileOptionParser = strOption
     ( long "texFile"
    <> metavar "FILEPATH"
    <> help "The path to the .tex (or .bib) file that you are currently editing"
     )
 
-showConfigOptionParser :: Parser (FilePath, ShowConfigEntry)
+showConfigOptionParser :: Parser (TexFilePath, ShowConfigEntry)
 showConfigOptionParser = (,)
     <$> texFileOptionParser
     <*> argument (eitherReader parseShowConfigEntry)
             (metavar "ENTRY" <> help "Config entry to show (all / language / dictionary)")
 
-setLanguageOptionParser :: Parser (FilePath, LTeXLanguage)
+setLanguageOptionParser :: Parser (TexFilePath, LTeXLanguage)
 setLanguageOptionParser = (,)
     <$> texFileOptionParser
     <*> argument (eitherReader parseLTeXLanguage)
             (metavar "LANGUAGE" <> help "Language to set (e.g. en-GB, ja-JP)")
 
-registerCorrectWordOptionParser :: Parser (FilePath, Text)
+registerCorrectWordOptionParser :: Parser (TexFilePath, Text)
 registerCorrectWordOptionParser = (,)
     <$> texFileOptionParser
     <*> strArgument (metavar "WORD" <> help "Word to register as correct")
 
-registerWrongWordOptionParser :: Parser (FilePath, Text)
+registerWrongWordOptionParser :: Parser (TexFilePath, Text)
 registerWrongWordOptionParser = (,)
     <$> texFileOptionParser
     <*> strArgument (metavar "WORD" <> help "Word to register as wrong")
@@ -232,24 +235,20 @@ searchDirectoryUpwards predicate directory =
                     then searchDirectoryUpwards predicate parent
                     else pure Nothing
 
-searchForProjectRoot :: FilePath -> IO (Maybe FilePath)
+searchForProjectRoot :: TexFilePath -> IO ProjectRootPath
 searchForProjectRoot texFilePath = do
     absolutePath  <- makeAbsolute texFilePath
     canonicalPath <- canonicalizePath absolutePath
     let startDirectory = takeDirectory canonicalPath
 
-    doesDirectoryExist startDirectory >>= \case
-        True ->
-            searchDirectoryUpwards hasLTeXFile startDirectory >>= \case
-                Just projRoot -> pure (Just projRoot)
-                Nothing       ->
-                    searchDirectoryUpwards hasGitFile startDirectory >>= \case
-                        Just projRoot -> pure (Just projRoot)
-                        Nothing       -> pure (Just startDirectory)
-        False ->
-            pure Nothing
+    searchDirectoryUpwards hasLTeXFile startDirectory >>= \case
+        Just projRoot -> pure projRoot
+        Nothing       ->
+            searchDirectoryUpwards hasGitFile startDirectory >>= \case
+                Just projRoot -> pure projRoot
+                Nothing       -> pure startDirectory
 
-getLTeXConfig :: FilePath -> IO (Either String LTeXConfig)
+getLTeXConfig :: ProjectRootPath -> IO (Either String LTeXConfig)
 getLTeXConfig projRoot =
     let configFilePath = projRoot </> ".ltex" </> "config.json" in
         doesFileExist configFilePath >>= \case
@@ -260,25 +259,31 @@ getLTeXConfig projRoot =
             False ->
                 pure (Right defaultLTeXConfig)
 
-withProjectRoot :: FilePath -> (FilePath -> IO ()) -> IO ()
-withProjectRoot texFilePath programme =
-    searchForProjectRoot texFilePath >>= \case
-        Just projRoot -> programme projRoot
-        Nothing       -> putStrLn "Failed to determine the project root" >> exitFailure
+writeLTeXConfig :: ProjectRootPath -> LTeXConfig -> IO ()
+writeLTeXConfig projRoot newConfig =
+    let configFileDir = projRoot </> ".ltex"
+        configFilePath = configFileDir </> "config.json" in
+            createDirectoryIfMissing True configFileDir >>
+                BS.writeFile configFilePath (encode newConfig)
 
-withLTeXConfig :: FilePath -> (LTeXConfig -> IO()) -> IO ()
+withProjectRoot :: TexFilePath -> (FilePath -> IO ()) -> IO ()
+withProjectRoot texFilePath programme =
+    searchForProjectRoot texFilePath >>=
+        programme
+
+withLTeXConfig :: TexFilePath -> ((LTeXConfig, ProjectRootPath) -> IO()) -> IO ()
 withLTeXConfig texFilePath programme =
     withProjectRoot texFilePath $ \projRoot ->
         getLTeXConfig projRoot >>= \case
-            Right config -> programme config
+            Right config -> programme (config, projRoot)
             Left err     -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
 
-showProjectRoot :: FilePath -> IO ()
+showProjectRoot :: TexFilePath -> IO ()
 showProjectRoot texFilePath = withProjectRoot texFilePath putStrLn
 
-showConfig :: (FilePath, ShowConfigEntry) -> IO ()
+showConfig :: (TexFilePath, ShowConfigEntry) -> IO ()
 showConfig (texFilePath, showConfigEntry) =
-    withLTeXConfig texFilePath $ \ltexConfig ->
+    withLTeXConfig texFilePath $ \(ltexConfig, _) ->
         case showConfigEntry of
             ShowAll ->
                BS.putStr (encode ltexConfig) 
@@ -291,13 +296,16 @@ showConfig (texFilePath, showConfigEntry) =
             ShowDictionary ->
                 mapM_ TextIO.putStrLn (dictionary ltexConfig)
 
-setLanguage :: (FilePath, LTeXLanguage) -> IO ()
-setLanguage x = putStrLn $ "setLanguage " <> show x
+setLanguage :: (TexFilePath, LTeXLanguage) -> IO ()
+setLanguage (texFilePath, newLanguage) =
+    withLTeXConfig texFilePath $ \(oldConfig, projRoot) ->
+        let newConfig = oldConfig { language = newLanguage } in
+            writeLTeXConfig projRoot newConfig
 
-registerCorrectWord :: (FilePath, Text) -> IO ()
+registerCorrectWord :: (TexFilePath, Text) -> IO ()
 registerCorrectWord x = putStrLn $ "registerCorrectWord " <> show x
 
-registerWrongWord :: (FilePath, Text) -> IO ()
+registerWrongWord :: (TexFilePath, Text) -> IO ()
 registerWrongWord x = putStrLn $ "registerWrongWord " <> show x
 
 main :: IO ()
