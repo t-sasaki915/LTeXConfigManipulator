@@ -167,28 +167,23 @@ registerWrongWordOptionParser :: Parser Text
 registerWrongWordOptionParser =
     strArgument (metavar "WORD" <> help "Word to register as wrong")
 
-data Command = ShowConfig          ShowConfigOption
-             | SetLanguage         LTeXLanguage
-             | RegisterCorrectWord Text
-             | RegisterWrongWord   Text
-
-commandParser :: Parser Command
+commandParser :: Parser (IO ())
 commandParser =
     hsubparser
         ( command "show"
-            ( info (ShowConfig <$> showConfigOptionParser)
+            (info (showConfig <$> showConfigOptionParser)
                 (progDesc "Show current configuration"))
 
        <> command "language"
-            ( info (SetLanguage <$> setLanguageOptionParser)
+            (info (setLanguage <$> setLanguageOptionParser)
                 (progDesc "Set LTeX language"))
 
        <> command "correctWord"
-            ( info (RegisterCorrectWord <$> registerCorrectWordOptionParser)
+            (info (registerCorrectWord <$> registerCorrectWordOptionParser)
                 (progDesc "Register a word to dictionary"))
 
        <> command "wrongWord"
-            ( info (RegisterWrongWord <$> registerWrongWordOptionParser)
+            (info (registerWrongWord <$> registerWrongWordOptionParser)
                 (progDesc "Unregister a word from dictionary"))
         )
 
@@ -206,11 +201,9 @@ registerWrongWord x = putStrLn $ "registerWrongWord " <> show x
 
 main :: IO ()
 main = do
-    execParser opts >>= \case
-        ShowConfig          x -> showConfig          x
-        SetLanguage         x -> setLanguage         x
-        RegisterCorrectWord x -> registerCorrectWord x
-        RegisterWrongWord   x -> registerWrongWord   x
+    programme <- execParser opts
+
+    programme
     where
         opts = info (commandParser <**> helper)
             (fullDesc <> progDesc "A small tool for vim-lsp to manipulate ltex configuration.")
