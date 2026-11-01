@@ -1,9 +1,10 @@
 module Main (main) where
 
-import Lib
 import Data.Aeson
 import Data.Aeson.Types (prependFailure, unexpected)
 import Data.Text (Text)
+import qualified Data.Text as Text
+import Options.Applicative hiding (Success)
 
 data LTeXLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanValencian | Chinese
                   | Danish | Dutch | DutchBelgium | English | EnglishAustralian | EnglishCanadian
@@ -13,6 +14,7 @@ data LTeXLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanV
                   | PortugueseAngolaPreAO | PortugueseBrazil | PortugueseMozambiquePreAO
                   | PortuguesePortugal | Romanian | Russian | SimpleGerman | Slovak | Slovenian
                   | Spanish | SpanishVoseo | Swedish | Tagalog | Tamil | Ukrainian
+                  deriving (Show, Eq)
 
 instance ToJSON LTeXLanguage where
     toJSON Arabic                    = String "ar"
@@ -114,6 +116,12 @@ instance FromJSON LTeXLanguage where
 
     parseJSON invalid = prependFailure "parsing LTeXLanguage failed, " (unexpected invalid)
 
+parseLTeXLanguage :: String -> Either String LTeXLanguage
+parseLTeXLanguage s =
+    case fromJSON (String (Text.pack s)) of
+        Success a -> Right a
+        Error err -> Left err
+
 data LTeXConfig = LTeXConfig
     { language   :: LTeXLanguage
     , dictionary :: [Text]
@@ -127,5 +135,81 @@ instance FromJSON LTeXConfig where
         <$> v .: "language"
         <*> v .: "dictionary"
 
+defaultLTeXConfig :: LTeXConfig
+defaultLTeXConfig = LTeXConfig
+    { language   = EnglishGB
+    , dictionary = []
+    }
+
+data ShowConfigOption = ShowAll | ShowLanguage | ShowDictionary deriving (Show, Eq)
+
+parseShowConfigOption :: String -> Either String ShowConfigOption
+parseShowConfigOption "all" = Right ShowAll
+parseShowConfigOption "language" = Right ShowLanguage
+parseShowConfigOption "dictionary" = Right ShowDictionary
+parseShowConfigOption x = Left ("Unexpected argument: " <> x)
+
+showConfigOptionParser :: Parser ShowConfigOption
+showConfigOptionParser =
+    argument (eitherReader parseShowConfigOption) (metavar "ENTRY" <> help "Config entry to show")
+
+setLanguageOptionParser :: Parser LTeXLanguage
+setLanguageOptionParser =
+    argument (eitherReader parseLTeXLanguage) (metavar "LANGUAGE" <> help "Language to set")
+
+registerCorrectWordOptionParser :: Parser Text
+registerCorrectWordOptionParser =
+    strArgument (metavar "WORD" <> help "Word to register as correct")
+
+registerWrongWordOptionParser :: Parser Text
+registerWrongWordOptionParser =
+    strArgument (metavar "WORD" <> help "Word to register as wrong")
+
+data Command = ShowConfig          ShowConfigOption
+             | SetLanguage         LTeXLanguage
+             | RegisterCorrectWord Text
+             | RegisterWrongWord   Text
+
+commandParser :: Parser Command
+commandParser =
+    hsubparser
+        ( command "show"
+            ( info (ShowConfig <$> showConfigOptionParser)
+                (progDesc "Show current configuration (all / language / dictionary)"))
+
+       <> command "language"
+            ( info (SetLanguage <$> setLanguageOptionParser)
+                (progDesc "Set LTeX language"))
+
+       <> command "correctWord"
+            ( info (RegisterCorrectWord <$> registerCorrectWordOptionParser)
+                (progDesc "Register a word to dictionary"))
+
+       <> command "wrongWord"
+            ( info (RegisterWrongWord <$> registerWrongWordOptionParser)
+                (progDesc "Unregister a word from dictionary"))
+        )
+
+showConfig :: ShowConfigOption -> IO ()
+showConfig x = putStrLn $ "showConfig " <> show x
+
+setLanguage :: LTeXLanguage -> IO ()
+setLanguage x = putStrLn $ "setLanguage " <> show x
+
+registerCorrectWord :: Text -> IO ()
+registerCorrectWord x = putStrLn $ "registerCorrectWord " <> show x
+
+registerWrongWord :: Text -> IO ()
+registerWrongWord x = putStrLn $ "registerWrongWord " <> show x
+
 main :: IO ()
-main = someFunc
+main = do
+    execParser opts >>= \case
+        ShowConfig          x -> showConfig          x
+        SetLanguage         x -> setLanguage         x
+        RegisterCorrectWord x -> registerCorrectWord x
+        RegisterWrongWord   x -> registerWrongWord   x
+    where
+        opts = info (commandParser <**> helper)
+            (fullDesc <> progDesc "A small tool for vim-lsp to manipulate ltex configuration.")
+
