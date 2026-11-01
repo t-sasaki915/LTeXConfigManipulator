@@ -296,13 +296,14 @@ showConfig (texFilePath, showConfigEntry) =
                     _           -> undefined
 
             ShowDictionary ->
-                mapM_ TextIO.putStrLn (dictionary ltexConfig)
+                TextIO.putStrLn (Text.unlines (dictionary ltexConfig))
 
 setLanguage :: (TexFilePath, LTeXLanguage) -> IO ()
 setLanguage (texFilePath, newLanguage) =
     withLTeXConfig texFilePath $ \(oldConfig, projRoot) ->
         let newConfig = oldConfig { language = newLanguage } in
-            writeLTeXConfig projRoot newConfig
+            writeLTeXConfig projRoot newConfig >>
+                TextIO.putStrLn ("Updated the language to " <> Text.show newLanguage <> ".")
 
 registerCorrectWord :: (TexFilePath, Text) -> IO ()
 registerCorrectWord (texFilePath, newWord) =
@@ -311,7 +312,8 @@ registerCorrectWord (texFilePath, newWord) =
             case newWord `elem` currentDict of
                 False ->
                     let newConfig = oldConfig { dictionary = currentDict <> [newWord] } in
-                        writeLTeXConfig projRoot newConfig
+                        writeLTeXConfig projRoot newConfig >>
+                            TextIO.putStrLn ("Registered '" <> newWord <> "' to the dictionary.")
 
                 True ->
                     TextIO.putStrLn $ "'" <> newWord <> "' is already registered."
@@ -323,7 +325,8 @@ registerWrongWord (texFilePath, wrongWord) =
             case wrongWord `elem` currentDict of
                 True ->
                     let newConfig = oldConfig { dictionary = filter (/= wrongWord) currentDict } in
-                        writeLTeXConfig projRoot newConfig
+                        writeLTeXConfig projRoot newConfig >>
+                            TextIO.putStrLn ("Unregistered '" <> wrongWord <> "' from the dictionary.")
 
                 False ->
                     TextIO.putStrLn $ "'" <> wrongWord <> "' is not in the dictionary."
