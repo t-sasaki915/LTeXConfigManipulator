@@ -5,6 +5,7 @@ import Data.Aeson.Types (prependFailure, unexpected)
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.IO as TextIO
 import Options.Applicative hiding (Success)
 import System.Directory
 import System.Exit (exitFailure)
@@ -278,7 +279,17 @@ showProjectRoot texFilePath = withProjectRoot texFilePath putStrLn
 showConfig :: (FilePath, ShowConfigEntry) -> IO ()
 showConfig (texFilePath, showConfigEntry) =
     withLTeXConfig texFilePath $ \ltexConfig ->
-        print ltexConfig
+        case showConfigEntry of
+            ShowAll ->
+               BS.putStr (encode ltexConfig) 
+
+            ShowLanguage ->
+                case toJSON (language ltexConfig) of
+                    String text -> TextIO.putStrLn text
+                    _           -> undefined
+
+            ShowDictionary ->
+                mapM_ TextIO.putStrLn (dictionary ltexConfig)
 
 setLanguage :: (FilePath, LTeXLanguage) -> IO ()
 setLanguage x = putStrLn $ "setLanguage " <> show x
