@@ -6,6 +6,7 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (toStrict)
 import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Vector (fromList, toList)
@@ -415,7 +416,12 @@ instance ToJSON BibTeXConfig where
 
 instance FromJSON BibTeXConfig where
     parseJSON = withObject "BibTeXConfig" $ \obj -> BibTeXConfig
-        <$> obj .: "fields"
+        <$> obj .:? "fields" .!= fields defaultBibTeXConfig
+
+defaultBibTeXConfig :: BibTeXConfig
+defaultBibTeXConfig = BibTeXConfig
+    { fields = mempty
+    }
 
 data LTeXAction = LTeXActionDefault
                 | LTeXActionIgnore
@@ -468,8 +474,14 @@ instance ToJSON LaTeXConfig where
 
 instance FromJSON LaTeXConfig where
     parseJSON = withObject "LaTeXConfig" $ \obj -> LaTeXConfig
-        <$> obj .: "commands"
-        <*> obj .: "environments"
+        <$> obj .:? "commands"     .!= commands defaultLaTeXConfig
+        <*> obj .:? "environments" .!= environments defaultLaTeXConfig
+
+defaultLaTeXConfig :: LaTeXConfig
+defaultLaTeXConfig = LaTeXConfig
+    { commands     = mempty
+    , environments = mempty
+    }
 
 data MarkdownConfig = MarkdownConfig
     { nodes :: Map Text LTeXAction
@@ -483,7 +495,12 @@ instance ToJSON MarkdownConfig where
 
 instance FromJSON MarkdownConfig where
     parseJSON = withObject "MarkdownConfig" $ \obj -> MarkdownConfig
-        <$> obj .: "nodes"
+        <$> obj .:? "nodes" .!= nodes defaultMarkdownConfig
+
+defaultMarkdownConfig :: MarkdownConfig
+defaultMarkdownConfig = MarkdownConfig
+    { nodes = mempty
+    }
 
 data LTeXConfigurationTargetKey = LTeXConfigurationTargetKeyDictionary
                                 | LTeXConfigurationTargetKeyDisabledRules
@@ -548,9 +565,16 @@ instance ToJSON AdditionalRules where
 
 instance FromJSON AdditionalRules where
     parseJSON = withObject "AdditionalRules" $ \obj -> AdditionalRules
-        <$> obj .: "enablePickyRules"
-        <*> obj .: "motherTongue"
-        <*> obj .: "languageModel"
+        <$> obj .:? "enablePickyRules" .!= enablePickyRules defaultAdditionalRules
+        <*> obj .:? "motherTongue"     .!= motherTongue defaultAdditionalRules
+        <*> obj .:? "languageModel"    .!= languageModel defaultAdditionalRules
+
+defaultAdditionalRules :: AdditionalRules
+defaultAdditionalRules = AdditionalRules
+    { enablePickyRules = False
+    , motherTongue     = LTeXNaturalOrNoneLanguageNone LTeXNoneLanguage
+    , languageModel    = ""
+    }
 
 data LanguageToolOrg = LanguageToolOrg
     { username :: Text
@@ -566,8 +590,14 @@ instance ToJSON LanguageToolOrg where
 
 instance FromJSON LanguageToolOrg where
     parseJSON = withObject "LanguageToolOrg" $ \obj -> LanguageToolOrg
-        <$> obj .: "username"
-        <*> obj .: "apiKey"
+        <$> obj .:? "username" .!= username defaultLanguageToolOrg
+        <*> obj .:? "apiKey"   .!= apiKey defaultLanguageToolOrg
+
+defaultLanguageToolOrg :: LanguageToolOrg
+defaultLanguageToolOrg = LanguageToolOrg
+    { username = ""
+    , apiKey   = ""
+    }
 
 data LTeXLsLogLevel = LTeXLsLogLevelSevere
                     | LTeXLsLogLevelWarning
@@ -612,8 +642,14 @@ instance ToJSON LTeXLs where
 
 instance FromJSON LTeXLs where
     parseJSON = withObject "LTeXLs" $ \obj -> LTeXLs
-        <$> obj .: "path"
-        <*> obj .: "logLevel"
+        <$> obj .:? "path"     .!= ltexLsPath defaultLTeXLs
+        <*> obj .:? "logLevel" .!= logLevel defaultLTeXLs
+
+defaultLTeXLs :: LTeXLs
+defaultLTeXLs = LTeXLs
+    { ltexLsPath = ""
+    , logLevel   = LTeXLsLogLevelFine
+    }
 
 data JavaConfig = JavaConfig
     { javaPath        :: Text
@@ -631,9 +667,16 @@ instance ToJSON JavaConfig where
 
 instance FromJSON JavaConfig where
     parseJSON = withObject "Java" $ \obj -> JavaConfig
-        <$> obj .: "path"
-        <*> obj .: "initialHeapSize"
-        <*> obj .: "maximumHeapSize"
+        <$> obj .:? "path"            .!= javaPath defaultJavaConfig
+        <*> obj .:? "initialHeapSize" .!= initialHeapSize defaultJavaConfig
+        <*> obj .:? "maximumHeapSize" .!= maximumHeapSize defaultJavaConfig
+
+defaultJavaConfig :: JavaConfig
+defaultJavaConfig = JavaConfig
+    { javaPath = ""
+    , initialHeapSize = 64
+    , maximumHeapSize = 2048
+    }
 
 data LTeXDiagnosticSeverityType = LTeXDiagnosticSeverityTypeError
                                 | LTeXDiagnosticSeverityTypeWarning
@@ -717,7 +760,12 @@ instance ToJSON Trace where
 
 instance FromJSON Trace where
     parseJSON = withObject "Trace" $ \obj -> Trace
-        <$> obj .: "server"
+        <$> obj .:? "server" .!= server defaultTrace
+
+defaultTrace :: Trace
+defaultTrace = Trace
+    { server = TraceServerModeOff
+    }
 
 data LTeXConfig = LTeXConfig
     { enabled                         :: LTeXEnabled
@@ -785,29 +833,64 @@ instance FromJSON LTeXConfig where
             withObject "ltex" parseLTeXConfig ltex
         where
             parseLTeXConfig = \ltexObj -> LTeXConfig
-                <$> ltexObj  .: "enabled"
-                <*> ltexObj  .: "language"
-                <*> ltexObj  .: "dictionary"
-                <*> ltexObj  .: "disabledRules"
-                <*> ltexObj  .: "enabledRules"
-                <*> (ltexObj .: "hiddenFalsePositives" >>= traverse (traverse hiddenFalsePositivesFromText))
-                <*> ltexObj  .: "bibtex"
-                <*> ltexObj  .: "latex"
-                <*> ltexObj  .: "markdown"
-                <*> ltexObj  .: "configurationTarget"
-                <*> ltexObj  .: "additionalRules"
-                <*> ltexObj  .: "languageToolHttpServerUri"
-                <*> ltexObj  .: "languageToolOrg"
-                <*> ltexObj  .: "ltex-ls"
-                <*> ltexObj  .: "java"
-                <*> ltexObj  .: "sentenceCacheSize"
-                <*> ltexObj  .: "maxRequestSize"
-                <*> ltexObj  .: "paragraphCacheTtlMinutes"
-                <*> ltexObj  .: "paragraphCacheEnabled"
-                <*> ltexObj  .: "completionEnabled"
-                <*> ltexObj  .: "diagnosticSeverity"
-                <*> ltexObj  .: "checkFrequency"
-                <*> ltexObj  .: "clearDiagnosticsWhenClosingFile"
-                <*> ltexObj  .: "statusBarItem"
-                <*> ltexObj  .: "trace"
+                <$> ltexObj   .:? "enabled"                         .!= enabled                         defaultLTeXConfig
+                <*> ltexObj   .:? "language"                        .!= language                        defaultLTeXConfig 
+                <*> ltexObj   .:? "dictionary"                      .!= dictionary                      defaultLTeXConfig
+                <*> ltexObj   .:? "disabledRules"                   .!= disabledRules                   defaultLTeXConfig
+                <*> ltexObj   .:? "enabledRules"                    .!= enabledRules                    defaultLTeXConfig
+                <*> ((ltexObj .:? "hiddenFalsePositives"            .!= mempty) >>= traverse (traverse hiddenFalsePositivesFromText))
+                <*> ltexObj   .:? "bibtex"                          .!= bibtex                          defaultLTeXConfig
+                <*> ltexObj   .:? "latex"                           .!= latex                           defaultLTeXConfig
+                <*> ltexObj   .:? "markdown"                        .!= markdown                        defaultLTeXConfig
+                <*> ltexObj   .:? "configurationTarget"             .!= configurationTarget             defaultLTeXConfig
+                <*> ltexObj   .:? "additionalRules"                 .!= additionalRules                 defaultLTeXConfig
+                <*> ltexObj   .:? "languageToolHttpServerUri"       .!= languageToolHttpServerUri       defaultLTeXConfig
+                <*> ltexObj   .:? "languageToolOrg"                 .!= languageToolOrg                 defaultLTeXConfig
+                <*> ltexObj   .:? "ltex-ls"                         .!= ltexLs                          defaultLTeXConfig
+                <*> ltexObj   .:? "java"                            .!= java                            defaultLTeXConfig
+                <*> ltexObj   .:? "sentenceCacheSize"               .!= sentenceCacheSize               defaultLTeXConfig
+                <*> ltexObj   .:? "maxRequestSize"                  .!= maxRequestSize                  defaultLTeXConfig
+                <*> ltexObj   .:? "paragraphCacheTtlMinutes"        .!= paragraphCacheTtlMinutes        defaultLTeXConfig
+                <*> ltexObj   .:? "paragraphCacheEnabled"           .!= paragraphCacheEnabled           defaultLTeXConfig
+                <*> ltexObj   .:? "completionEnabled"               .!= completionEnabled               defaultLTeXConfig
+                <*> ltexObj   .:? "diagnosticSeverity"              .!= diagnosticSeverity              defaultLTeXConfig 
+                <*> ltexObj   .:? "checkFrequency"                  .!= checkFrequency                  defaultLTeXConfig 
+                <*> ltexObj   .:? "clearDiagnosticsWhenClosingFile" .!= clearDiagnosticsWhenClosingFile defaultLTeXConfig
+                <*> ltexObj   .:? "statusBarItem"                   .!= statusBarItem                   defaultLTeXConfig
+                <*> ltexObj   .:? "trace"                           .!= trace                           defaultLTeXConfig
+            
+defaultLTeXConfig :: LTeXConfig
+defaultLTeXConfig = LTeXConfig
+    { enabled                         = LTeXEnabledArray $ map LTeXMarkupOrProgrammingLanguageMarkup
+        [ BibTeX, ConTeXt, XHTML, LaTeX, Markdown, MDX, Typst, AsciiDoc, Neorg, Org
+        , Quarto, ReStructuredText, RSweave]
+    , language                        = LTeXNaturalOrAutoDetectLanguageNatural EnglishUS
+    , dictionary                      = mempty
+    , disabledRules                   = mempty
+    , enabledRules                    = mempty
+    , hiddenFalsePositives            = mempty
+    , bibtex                          = defaultBibTeXConfig
+    , latex                           = defaultLaTeXConfig
+    , markdown                        = defaultMarkdownConfig
+    , configurationTarget             = Map.fromList 
+        [ (LTeXConfigurationTargetKeyDictionary          , LTeXConfigurationTargetValueWorkspaceFolderExternalFile)
+        , (LTeXConfigurationTargetKeyDisabledRules       , LTeXConfigurationTargetValueWorkspaceFolderExternalFile)
+        , (LTeXConfigurationTargetKeyHiddenFalsePositives, LTeXConfigurationTargetValueWorkspaceFolderExternalFile)
+        ]
+    , additionalRules                 = defaultAdditionalRules
+    , languageToolHttpServerUri       = ""
+    , languageToolOrg                 = defaultLanguageToolOrg
+    , ltexLs                          = defaultLTeXLs
+    , java                            = defaultJavaConfig
+    , sentenceCacheSize               = 0
+    , maxRequestSize                  = 20000
+    , paragraphCacheTtlMinutes        = 30
+    , paragraphCacheEnabled           = True
+    , completionEnabled               = False
+    , diagnosticSeverity              = LTeXDiagnosticSeverityString LTeXDiagnosticSeverityTypeInformation
+    , checkFrequency                  = LTeXCheckFrequencyEdit
+    , clearDiagnosticsWhenClosingFile = True
+    , statusBarItem                   = False
+    , trace                           = defaultTrace
+    }
 
