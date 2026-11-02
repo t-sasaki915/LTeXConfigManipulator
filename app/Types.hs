@@ -474,7 +474,7 @@ instance ToJSON LaTeXConfig where
 
 instance FromJSON LaTeXConfig where
     parseJSON = withObject "LaTeXConfig" $ \obj -> LaTeXConfig
-        <$> obj .:? "commands"     .!= commands defaultLaTeXConfig
+        <$> obj .:? "commands"     .!= commands     defaultLaTeXConfig
         <*> obj .:? "environments" .!= environments defaultLaTeXConfig
 
 defaultLaTeXConfig :: LaTeXConfig
@@ -566,8 +566,8 @@ instance ToJSON AdditionalRules where
 instance FromJSON AdditionalRules where
     parseJSON = withObject "AdditionalRules" $ \obj -> AdditionalRules
         <$> obj .:? "enablePickyRules" .!= enablePickyRules defaultAdditionalRules
-        <*> obj .:? "motherTongue"     .!= motherTongue defaultAdditionalRules
-        <*> obj .:? "languageModel"    .!= languageModel defaultAdditionalRules
+        <*> obj .:? "motherTongue"     .!= motherTongue     defaultAdditionalRules
+        <*> obj .:? "languageModel"    .!= languageModel    defaultAdditionalRules
 
 defaultAdditionalRules :: AdditionalRules
 defaultAdditionalRules = AdditionalRules
@@ -591,7 +591,7 @@ instance ToJSON LanguageToolOrg where
 instance FromJSON LanguageToolOrg where
     parseJSON = withObject "LanguageToolOrg" $ \obj -> LanguageToolOrg
         <$> obj .:? "username" .!= username defaultLanguageToolOrg
-        <*> obj .:? "apiKey"   .!= apiKey defaultLanguageToolOrg
+        <*> obj .:? "apiKey"   .!= apiKey   defaultLanguageToolOrg
 
 defaultLanguageToolOrg :: LanguageToolOrg
 defaultLanguageToolOrg = LanguageToolOrg
@@ -643,7 +643,7 @@ instance ToJSON LTeXLs where
 instance FromJSON LTeXLs where
     parseJSON = withObject "LTeXLs" $ \obj -> LTeXLs
         <$> obj .:? "path"     .!= ltexLsPath defaultLTeXLs
-        <*> obj .:? "logLevel" .!= logLevel defaultLTeXLs
+        <*> obj .:? "logLevel" .!= logLevel   defaultLTeXLs
 
 defaultLTeXLs :: LTeXLs
 defaultLTeXLs = LTeXLs
@@ -667,13 +667,13 @@ instance ToJSON JavaConfig where
 
 instance FromJSON JavaConfig where
     parseJSON = withObject "Java" $ \obj -> JavaConfig
-        <$> obj .:? "path"            .!= javaPath defaultJavaConfig
+        <$> obj .:? "path"            .!= javaPath        defaultJavaConfig
         <*> obj .:? "initialHeapSize" .!= initialHeapSize defaultJavaConfig
         <*> obj .:? "maximumHeapSize" .!= maximumHeapSize defaultJavaConfig
 
 defaultJavaConfig :: JavaConfig
 defaultJavaConfig = JavaConfig
-    { javaPath = ""
+    { javaPath        = ""
     , initialHeapSize = 64
     , maximumHeapSize = 2048
     }
