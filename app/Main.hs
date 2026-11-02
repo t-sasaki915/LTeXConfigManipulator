@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Main (main) where
 
 import Data.Aeson
@@ -138,6 +140,15 @@ parseConfigValue input =
                 Success val -> Right val
                 Error   err -> Left  err
 
+withParsedValue :: FromJSON b => ConfigPath a b -> Text -> (b -> IO ()) -> IO ()
+withParsedValue _ configValue programme =
+    case parseConfigValue configValue of
+        Right (configValue' :: b) ->
+            programme configValue'
+
+        Left err ->
+            putStrLn err >> exitFailure
+
 main :: IO ()
 main = execParser commandLineParser >>= \case
     (GetCommand texFilePath (SomeConfigPath configPath)) ->
@@ -157,16 +168,17 @@ main = execParser commandLineParser >>= \case
                     putStrLn err >> exitFailure
 
     (AddCommand texFilePath (SomeConfigPath configPath) configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, _) -> do
-            case parseConfigValue configValue of
-                Right configVal ->
-                    case doAppend (getValueFromConfig configPath currentConf) configVal of
-                        Right val'              -> BS.putStr (encode $ setValueToConfig configPath val' currentConf)
-                        Left AppendNotSupported -> putStrLn "NOT SUPPORTED!!"
-                        Left ItemAlreadyInList  -> putStrLn "ALREADY IN LIST!!"
+        withLTeXConfig texFilePath $ \(currentConf, _) ->
+            withParsedValue configPath configValue $ \configValue' ->
+                case doAppend (getValueFromConfig configPath currentConf) configValue' of
+                    Right val' ->
+                        BS.putStr $ encode $ setValueToConfig configPath val' currentConf
 
-                Left err ->
-                    putStrLn err >> exitFailure
+                    Left AppendNotSupported ->
+                        putStrLn "Not supported"
+
+                    Left ItemAlreadyInList ->
+                        putStrLn "already in list"
 
     (RemoveCommand texFilePath configPath configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, projRoot) ->

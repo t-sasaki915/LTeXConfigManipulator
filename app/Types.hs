@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Types where
 
@@ -950,61 +951,63 @@ defaultLTeXConfig = LTeXConfig
     , _trace                           = defaultTrace
     }
 
-data ConfigPath a where
-    Enabled                         :: ConfigPath LTeXEnabled
-    Language                        :: ConfigPath LTeXNaturalOrAutoDetectLanguage
-    Dictionary                      :: LTeXNaturalLanguage -> ConfigPath (Maybe [Text])
-    DictionaryAll                   :: ConfigPath (Map LTeXNaturalLanguage [Text])
-    DisabledRules                   :: LTeXNaturalLanguage -> ConfigPath (Maybe [Text])
-    DisabledRulesAll                :: ConfigPath (Map LTeXNaturalLanguage [Text])
-    EnabledRules                    :: LTeXNaturalLanguage -> ConfigPath (Maybe [Text])
-    EnabledRulesAll                 :: ConfigPath (Map LTeXNaturalLanguage [Text])
-    HiddenFalsePositives            :: LTeXNaturalLanguage -> ConfigPath (Maybe [HiddenFalsePositivesValue])
-    HiddenFalsePositivesAll         :: ConfigPath (Map LTeXNaturalLanguage [HiddenFalsePositivesValue])
-    BibTeXAll                       :: ConfigPath BibTeXConfig
-    BibTeXFields                    :: Text -> ConfigPath (Maybe Bool)
-    BibTeXFieldsAll                 :: ConfigPath (Map Text Bool)
-    LaTeXAll                        :: ConfigPath LaTeXConfig
-    LaTeXCommands                   :: Text -> ConfigPath (Maybe LTeXAction)
-    LaTeXCommandsAll                :: ConfigPath (Map Text LTeXAction)
-    LaTeXEnvironments               :: Text -> ConfigPath (Maybe LaTeXEnvironmentAction)
-    LaTeXEnvironmentsAll            :: ConfigPath (Map Text LaTeXEnvironmentAction)
-    MarkdownAll                     :: ConfigPath MarkdownConfig
-    MarkdownNodes                   :: Text -> ConfigPath (Maybe LTeXAction)
-    MarkdownNodesAll                :: ConfigPath (Map Text LTeXAction)
-    ConfigurationTarget             :: LTeXConfigurationTargetKey -> ConfigPath (Maybe LTeXConfigurationTargetValue)
-    ConfigurationTargetAll          :: ConfigPath (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue)
-    AdditionalRulesAll              :: ConfigPath AdditionalRules
-    AdditionalRulesEnablePickyRules :: ConfigPath Bool
-    AdditionalRulesMotherTongue     :: ConfigPath LTeXNaturalOrNoneLanguage
-    AdditionalRulesLanguageModel    :: ConfigPath Text
-    LanguageToolHttpServerUri       :: ConfigPath Text
-    LanguageToolOrgAll              :: ConfigPath LanguageToolOrg
-    LanguageToolOrgUsername         :: ConfigPath Text
-    LanguageToolOrgApiKey           :: ConfigPath Text
-    LTeXLsAll                       :: ConfigPath LTeXLs
-    LTeXLsPath                      :: ConfigPath Text
-    LTeXLsLogLevel                  :: ConfigPath LTeXLsLogLevel
-    JavaAll                         :: ConfigPath JavaConfig
-    JavaPath                        :: ConfigPath Text
-    JavaInitialHeapSize             :: ConfigPath Int
-    JavaMaximumHeapSize             :: ConfigPath Int
-    SentenceCacheSize               :: ConfigPath Int
-    MaxRequestSize                  :: ConfigPath Int
-    ParagraphCacheTtlMinutes        :: ConfigPath Int
-    ParagraphCacheEnabled           :: ConfigPath Bool
-    CompletionEnabled               :: ConfigPath Bool
-    DiagnosticSeverity              :: ConfigPath LTeXDiagnosticSeverity
-    CheckFrequency                  :: ConfigPath LTeXCheckFrequency
-    ClearDiagnosticsWhenClosingFile :: ConfigPath Bool
-    StatusBarItem                   :: ConfigPath Bool
-    TraceAll                        :: ConfigPath Trace
-    TraceServer                     :: ConfigPath TraceServerMode
+data ConfigPath a b where
+    Enabled                         :: ConfigPath LTeXEnabled                                                        LTeXEnabled
+    Language                        :: ConfigPath LTeXNaturalOrAutoDetectLanguage                                    ()
+    Dictionary                      :: LTeXNaturalLanguage -> ConfigPath (Maybe [Text])                              Text
+    DictionaryAll                   :: ConfigPath (Map LTeXNaturalLanguage [Text])                                   (LTeXNaturalLanguage, [Text])
+    DisabledRules                   :: LTeXNaturalLanguage -> ConfigPath (Maybe [Text])                              Text
+    DisabledRulesAll                :: ConfigPath (Map LTeXNaturalLanguage [Text])                                   (LTeXNaturalLanguage, [Text])
+    EnabledRules                    :: LTeXNaturalLanguage -> ConfigPath (Maybe [Text])                              Text
+    EnabledRulesAll                 :: ConfigPath (Map LTeXNaturalLanguage [Text])                                   (LTeXNaturalLanguage, [Text])
+    HiddenFalsePositives            :: LTeXNaturalLanguage -> ConfigPath (Maybe [HiddenFalsePositivesValue])         HiddenFalsePositivesValue
+    HiddenFalsePositivesAll         :: ConfigPath (Map LTeXNaturalLanguage [HiddenFalsePositivesValue])              (LTeXNaturalLanguage, [HiddenFalsePositivesValue])
+    BibTeXAll                       :: ConfigPath BibTeXConfig                                                       ()
+    BibTeXFields                    :: Text -> ConfigPath (Maybe Bool)                                               ()
+    BibTeXFieldsAll                 :: ConfigPath (Map Text Bool)                                                    (Text, Bool)
+    LaTeXAll                        :: ConfigPath LaTeXConfig                                                        ()
+    LaTeXCommands                   :: Text -> ConfigPath (Maybe LTeXAction)                                         ()
+    LaTeXCommandsAll                :: ConfigPath (Map Text LTeXAction)                                              (Text, LTeXAction)
+    LaTeXEnvironments               :: Text -> ConfigPath (Maybe LaTeXEnvironmentAction)                             ()
+    LaTeXEnvironmentsAll            :: ConfigPath (Map Text LaTeXEnvironmentAction)                                  (Text, LaTeXEnvironmentAction)
+    MarkdownAll                     :: ConfigPath MarkdownConfig                                                     ()
+    MarkdownNodes                   :: Text -> ConfigPath (Maybe LTeXAction)                                         ()
+    MarkdownNodesAll                :: ConfigPath (Map Text LTeXAction)                                              (Text, LTeXAction)
+    ConfigurationTarget             :: LTeXConfigurationTargetKey -> ConfigPath (Maybe LTeXConfigurationTargetValue) ()
+    ConfigurationTargetAll          :: ConfigPath (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue)      (LTeXConfigurationTargetKey, LTeXConfigurationTargetValue)
+    AdditionalRulesAll              :: ConfigPath AdditionalRules                                                    ()
+    AdditionalRulesEnablePickyRules :: ConfigPath Bool                                                               ()
+    AdditionalRulesMotherTongue     :: ConfigPath LTeXNaturalOrNoneLanguage                                          ()
+    AdditionalRulesLanguageModel    :: ConfigPath Text                                                               ()
+    LanguageToolHttpServerUri       :: ConfigPath Text                                                               ()
+    LanguageToolOrgAll              :: ConfigPath LanguageToolOrg                                                    ()
+    LanguageToolOrgUsername         :: ConfigPath Text                                                               ()
+    LanguageToolOrgApiKey           :: ConfigPath Text                                                               ()
+    LTeXLsAll                       :: ConfigPath LTeXLs                                                             ()
+    LTeXLsPath                      :: ConfigPath Text                                                               ()
+    LTeXLsLogLevel                  :: ConfigPath LTeXLsLogLevel                                                     ()
+    JavaAll                         :: ConfigPath JavaConfig                                                         ()
+    JavaPath                        :: ConfigPath Text                                                               ()
+    JavaInitialHeapSize             :: ConfigPath Int                                                                ()
+    JavaMaximumHeapSize             :: ConfigPath Int                                                                ()
+    SentenceCacheSize               :: ConfigPath Int                                                                ()
+    MaxRequestSize                  :: ConfigPath Int                                                                ()
+    ParagraphCacheTtlMinutes        :: ConfigPath Int                                                                ()
+    ParagraphCacheEnabled           :: ConfigPath Bool                                                               ()
+    CompletionEnabled               :: ConfigPath Bool                                                               ()
+    DiagnosticSeverity              :: ConfigPath LTeXDiagnosticSeverity                                             ()
+    CheckFrequency                  :: ConfigPath LTeXCheckFrequency                                                 ()
+    ClearDiagnosticsWhenClosingFile :: ConfigPath Bool                                                               ()
+    StatusBarItem                   :: ConfigPath Bool                                                               ()
+    TraceAll                        :: ConfigPath Trace                                                              ()
+    TraceServer                     :: ConfigPath TraceServerMode                                                    ()
 
 data SomeConfigPath where
-    SomeConfigPath :: (IsListActionDefined a, ToJSON a, FromJSON a) => ConfigPath a -> SomeConfigPath
+    SomeConfigPath :: (IsListActionDefined a b, ToJSON a, FromJSON a, ToJSON b, FromJSON b)
+                   => ConfigPath a b
+                   -> SomeConfigPath
 
-configPathLens :: ConfigPath a -> Lens' LTeXConfig a
+configPathLens :: ConfigPath a b -> Lens' LTeXConfig a
 configPathLens = \case
     Enabled                         -> enabled
     Language                        -> language
@@ -1056,10 +1059,10 @@ configPathLens = \case
     TraceAll                        -> trace
     TraceServer                     -> trace . server
 
-getValueFromConfig :: ConfigPath a -> LTeXConfig -> a
+getValueFromConfig :: ConfigPath a b -> LTeXConfig -> a
 getValueFromConfig = view . configPathLens
 
-setValueToConfig :: ConfigPath a -> a -> LTeXConfig -> LTeXConfig
+setValueToConfig :: ConfigPath a b -> a -> LTeXConfig -> LTeXConfig
 setValueToConfig path val conf = set (configPathLens path) val conf
 
 configPathFromText :: Text -> Maybe SomeConfigPath
@@ -1124,123 +1127,123 @@ configPathFromText input =
 data AppendError = AppendNotSupported | ItemAlreadyInList deriving (Show, Eq)
 data RemoveError = RemoveNotSupported | ItemNotInList     deriving (Show, Eq)
 
-class IsListActionDefined a where
-    doAppend :: a -> a -> Either AppendError a
-    doRemove :: a -> a -> Either RemoveError a
+class IsListActionDefined a b where
+    doAppend :: a -> b -> Either AppendError a
+    doRemove :: a -> b -> Either RemoveError a
 
-instance IsListActionDefined LTeXEnabled where
+instance IsListActionDefined LTeXEnabled LTeXEnabled where
     doAppend (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (a <> b))
     doAppend _ _                                       = Left AppendNotSupported
     doRemove (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (filter (`notElem` b) a))
     doRemove _ _                                       = Left RemoveNotSupported
 
-instance IsListActionDefined LTeXNaturalOrAutoDetectLanguage where
+instance IsListActionDefined LTeXNaturalOrAutoDetectLanguage () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Maybe [Text]) where
-    doAppend a b = Right (Just (fromMaybe [] a <> fromMaybe [] b))
-    doRemove a b = Right (Just (filter (`notElem` (fromMaybe [] b)) (fromMaybe [] a)))
+instance IsListActionDefined (Maybe [Text]) Text where
+    doAppend maybeList newItem =
+        let list = fromMaybe [] maybeList in
+            case newItem `elem` list of
+                False -> Right (Just (list <> [newItem]))
+                True  -> Left ItemAlreadyInList
 
-instance IsListActionDefined (Map LTeXNaturalLanguage [Text]) where
-    doAppend a b = Right (a <> b)
+instance IsListActionDefined (Map LTeXNaturalLanguage [Text]) (LTeXNaturalLanguage, [Text]) where
 
-instance IsListActionDefined (Maybe [HiddenFalsePositivesValue]) where
-    doAppend a b = Right (Just (fromMaybe [] a <> fromMaybe [] b))
-    doRemove a b = Right (Just (filter (`notElem` (fromMaybe [] b)) (fromMaybe [] a)))
+instance IsListActionDefined (Maybe [HiddenFalsePositivesValue]) HiddenFalsePositivesValue where
+    doAppend maybeList newItem =
+        let list = fromMaybe [] maybeList in
+            case newItem `elem` list of
+                False -> Right (Just (list <> [newItem]))
+                True  -> Left ItemAlreadyInList
 
-instance IsListActionDefined (Map LTeXNaturalLanguage [HiddenFalsePositivesValue]) where
-    doAppend a b = Right (a <> b)
+instance IsListActionDefined (Map LTeXNaturalLanguage [HiddenFalsePositivesValue]) (LTeXNaturalLanguage, [HiddenFalsePositivesValue]) where
 
-instance IsListActionDefined BibTeXConfig where
+instance IsListActionDefined BibTeXConfig () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Maybe Bool) where
+instance IsListActionDefined (Maybe Bool) () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Map Text Bool) where
-    doAppend a b = Right (a <> b)
+instance IsListActionDefined (Map Text Bool) (Text, Bool) where
 
-instance IsListActionDefined LaTeXConfig where
+instance IsListActionDefined LaTeXConfig () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Maybe LTeXAction) where
+instance IsListActionDefined (Maybe LTeXAction) () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Map Text LTeXAction) where
-    doAppend a b = Right (a <> b)
+instance IsListActionDefined (Map Text LTeXAction) (Text, LTeXAction) where
 
-instance IsListActionDefined (Maybe LaTeXEnvironmentAction) where
+instance IsListActionDefined (Maybe LaTeXEnvironmentAction) () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Map Text LaTeXEnvironmentAction) where
-    doAppend a b = Right (a <> b)
+instance IsListActionDefined (Map Text LaTeXEnvironmentAction) (Text, LaTeXEnvironmentAction) where
 
-instance IsListActionDefined MarkdownConfig where
+instance IsListActionDefined MarkdownConfig () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Maybe LTeXConfigurationTargetValue) where
+instance IsListActionDefined (Maybe LTeXConfigurationTargetValue) () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue) where
-    doAppend a b = Right (a <> b)
+instance IsListActionDefined (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue) (LTeXConfigurationTargetKey, LTeXConfigurationTargetValue)where
 
-instance IsListActionDefined AdditionalRules where
+instance IsListActionDefined AdditionalRules () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined Bool where
+instance IsListActionDefined Bool () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined LTeXNaturalOrNoneLanguage where
+instance IsListActionDefined LTeXNaturalOrNoneLanguage () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined Text where
+instance IsListActionDefined Text () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined LanguageToolOrg where
+instance IsListActionDefined LanguageToolOrg () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined LTeXLs where
+instance IsListActionDefined LTeXLs () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined LTeXLsLogLevel where
+instance IsListActionDefined LTeXLsLogLevel () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined JavaConfig where
+instance IsListActionDefined JavaConfig () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined Int where
+instance IsListActionDefined Int () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined LTeXDiagnosticSeverity where
+instance IsListActionDefined LTeXDiagnosticSeverity () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined LTeXCheckFrequency where
+instance IsListActionDefined LTeXCheckFrequency () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined Trace where
+instance IsListActionDefined Trace () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
-instance IsListActionDefined TraceServerMode where
+instance IsListActionDefined TraceServerMode () where
     doAppend _ _ = Left AppendNotSupported
     doRemove _ _ = Left RemoveNotSupported
 
