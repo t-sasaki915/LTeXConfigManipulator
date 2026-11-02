@@ -403,53 +403,147 @@ instance FromJSON Java where
         <*> obj .: "initialHeapSize"
         <*> obj .: "maximumHeapSize"
 
+data LTeXDiagnosticSeverityType = LTeXDiagnosticSeverityTypeError
+                                | LTeXDiagnosticSeverityTypeWarning
+                                | LTeXDiagnosticSeverityTypeInformation
+                                | LTeXDiagnosticSeverityTypeHint
+                                deriving (Show, Eq)
+
+instance ToJSON LTeXDiagnosticSeverityType where
+    toJSON LTeXDiagnosticSeverityTypeError       = String "error"
+    toJSON LTeXDiagnosticSeverityTypeWarning     = String "warning"
+    toJSON LTeXDiagnosticSeverityTypeInformation = String "information"
+    toJSON LTeXDiagnosticSeverityTypeHint        = String "hint"
+
+instance FromJSON LTeXDiagnosticSeverityType where
+    parseJSON (String "error")       = pure LTeXDiagnosticSeverityTypeError
+    parseJSON (String "warning")     = pure LTeXDiagnosticSeverityTypeWarning
+    parseJSON (String "information") = pure LTeXDiagnosticSeverityTypeInformation
+    parseJSON (String "hint")        = pure LTeXDiagnosticSeverityTypeHint
+    
+    parseJSON invalid = prependFailure "parsing LTeXDiagnosticSeverityType failed, " (unexpected invalid)
+
+data LTeXDiagnosticSeverity = LTeXDiagnosticSeverityString LTeXDiagnosticSeverityType
+                            | LTeXDiagnosticSeverityObject (Map Text LTeXDiagnosticSeverityType)
+                            deriving (Show, Eq)
+
+instance ToJSON LTeXDiagnosticSeverity where
+    toJSON (LTeXDiagnosticSeverityString x) = toJSON x
+    toJSON (LTeXDiagnosticSeverityObject x) = toJSON x
+
+instance FromJSON LTeXDiagnosticSeverity where
+    parseJSON (String x) = LTeXDiagnosticSeverityString <$> parseJSON (String x)
+    parseJSON (Object x) = LTeXDiagnosticSeverityObject <$> parseJSON (Object x)
+
+    parseJSON invalid =
+        prependFailure "parsing LTeXDiagnosticSeverity failed, "
+            (typeMismatch "String or Object" invalid)
+
+data LTeXCheckFrequency = LTeXCheckFrequencyEdit
+                        | LTeXCheckFrequencySave
+                        | LTeXCheckFrequencyManual
+                        deriving (Show, Eq)
+
+instance ToJSON LTeXCheckFrequency where
+    toJSON LTeXCheckFrequencyEdit   = String "edit"
+    toJSON LTeXCheckFrequencySave   = String "save"
+    toJSON LTeXCheckFrequencyManual = String "manual"
+
+instance FromJSON LTeXCheckFrequency where
+    parseJSON (String "edit")   = pure LTeXCheckFrequencyEdit
+    parseJSON (String "save")   = pure LTeXCheckFrequencySave
+    parseJSON (String "manual") = pure LTeXCheckFrequencyManual
+    
+    parseJSON invalid = prependFailure "parsing LTeXCheckFrequency failed, " (unexpected invalid)
+
+data TraceServerMode = TraceServerModeOff
+                     | TraceServerModeMessages
+                     | TraceServerModeVerbose
+                     deriving (Show, Eq)
+
+instance ToJSON TraceServerMode where
+    toJSON TraceServerModeOff      = String "off"
+    toJSON TraceServerModeMessages = String "messages"
+    toJSON TraceServerModeVerbose  = String "verbose"
+
+instance FromJSON TraceServerMode where
+    parseJSON (String "off")      = pure TraceServerModeOff
+    parseJSON (String "messages") = pure TraceServerModeMessages
+    parseJSON (String "verbose")  = pure TraceServerModeVerbose
+    
+    parseJSON invalid = prependFailure "parsing TraceServerMode failed, " (unexpected invalid)
+
+data Trace = Trace
+    { server :: TraceServerMode 
+    }
+    deriving (Show, Eq)
+
+instance ToJSON Trace where
+    toJSON conf = object
+        [ "server" .= server conf
+        ]
+
+instance FromJSON Trace where
+    parseJSON = withObject "Trace" $ \obj -> Trace
+        <$> obj .: "server"
+
 data LTeXConfig = LTeXConfig
-    { enabled                   :: LTeXEnabled
-    , language                  :: LTeXLanguage
-    , dictionary                :: Map LTeXLanguage [Text]
-    , disabledRules             :: Map LTeXLanguage [Text]
-    , enabledRules              :: Map LTeXLanguage [Text]
-    , hiddenFalsePositives      :: Map LTeXLanguage [HiddenFalsePositives]
-    , bibtex                    :: BibTeXConfig
-    , latex                     :: LaTeXConfig
-    , markdown                  :: MarkdownConfig
-    , configurationTarget       :: Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue
-    , additionalRules           :: AdditionalRules
-    , languageToolHttpServerUri :: Text
-    , languageToolOrg           :: LanguageToolOrg
-    , ltexLs                    :: LTeXLs
-    , java                      :: Java
-    , sentenceCacheSize         :: Int
-    , maxRequestSize            :: Int
-    , paragraphCacheTtlMinutes  :: Int
-    , paragraphCacheEnabled     :: Bool
-    , completionEnabled         :: Bool
+    { enabled                         :: LTeXEnabled
+    , language                        :: LTeXLanguage
+    , dictionary                      :: Map LTeXLanguage [Text]
+    , disabledRules                   :: Map LTeXLanguage [Text]
+    , enabledRules                    :: Map LTeXLanguage [Text]
+    , hiddenFalsePositives            :: Map LTeXLanguage [HiddenFalsePositives]
+    , bibtex                          :: BibTeXConfig
+    , latex                           :: LaTeXConfig
+    , markdown                        :: MarkdownConfig
+    , configurationTarget             :: Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue
+    , additionalRules                 :: AdditionalRules
+    , languageToolHttpServerUri       :: Text
+    , languageToolOrg                 :: LanguageToolOrg
+    , ltexLs                          :: LTeXLs
+    , java                            :: Java
+    , sentenceCacheSize               :: Int
+    , maxRequestSize                  :: Int
+    , paragraphCacheTtlMinutes        :: Int
+    , paragraphCacheEnabled           :: Bool
+    , completionEnabled               :: Bool
+    , diagnosticSeverity              :: LTeXDiagnosticSeverity
+    , checkFrequency                  :: LTeXCheckFrequency
+    , clearDiagnosticsWhenClosingFile :: Bool
+    , statusBarItem                   :: Bool
+    , trace                           :: Trace
     }
     deriving (Show, Eq)
 
 instance ToJSON LTeXConfig where
     toJSON conf = object
         [ "ltex" .= object
-            [ "enabled"                   .= enabled conf
-            , "language"                  .= language conf
-            , "dictionary"                .= dictionary conf
-            , "disabledRules"             .= disabledRules conf
-            , "enabledRules"              .= enabledRules conf
-            , "hiddenFalsePositives"      .= fmap (map hiddenFalsePositivesToText) (hiddenFalsePositives conf)
-            , "bibtex"                    .= bibtex conf
-            , "latex"                     .= latex conf
-            , "markdown"                  .= markdown conf
-            , "configurationTarget"       .= configurationTarget conf
-            , "additionalRules"           .= additionalRules conf
-            , "languageToolHttpServerUri" .= languageToolHttpServerUri conf
-            , "languageToolOrg"           .= languageToolOrg conf
-            , "ltex-ls"                   .= ltexLs conf
-            , "java"                      .= java conf
-            , "sentenceCacheSize"         .= sentenceCacheSize conf
-            , "maxRequestSize"            .= maxRequestSize conf
-            , "paragraphCacheTtlMinutes"  .= paragraphCacheTtlMinutes conf
-            , "paragraphCacheEnabled"     .= paragraphCacheEnabled conf
-            , "completionEnabled"         .= completionEnabled conf
+            [ "enabled"                         .= enabled conf
+            , "language"                        .= language conf
+            , "dictionary"                      .= dictionary conf
+            , "disabledRules"                   .= disabledRules conf
+            , "enabledRules"                    .= enabledRules conf
+            , "hiddenFalsePositives"            .= fmap (map hiddenFalsePositivesToText) (hiddenFalsePositives conf)
+            , "bibtex"                          .= bibtex conf
+            , "latex"                           .= latex conf
+            , "markdown"                        .= markdown conf
+            , "configurationTarget"             .= configurationTarget conf
+            , "additionalRules"                 .= additionalRules conf
+            , "languageToolHttpServerUri"       .= languageToolHttpServerUri conf
+            , "languageToolOrg"                 .= languageToolOrg conf
+            , "ltex-ls"                         .= ltexLs conf
+            , "java"                            .= java conf
+            , "sentenceCacheSize"               .= sentenceCacheSize conf
+            , "maxRequestSize"                  .= maxRequestSize conf
+            , "paragraphCacheTtlMinutes"        .= paragraphCacheTtlMinutes conf
+            , "paragraphCacheEnabled"           .= paragraphCacheEnabled conf
+            , "completionEnabled"               .= completionEnabled conf
+            , "diagnosticSeverity"              .= diagnosticSeverity conf
+            , "checkFrequency"                  .= checkFrequency conf
+            , "clearDiagnosticsWhenClosingFile" .= clearDiagnosticsWhenClosingFile conf
+            , "statusBarItem"                   .= statusBarItem conf
+            , "trace"                           .= trace conf
             ]
         ]
 
@@ -479,4 +573,9 @@ instance FromJSON LTeXConfig where
                 <*> ltexObj  .: "paragraphCacheTtlMinutes"
                 <*> ltexObj  .: "paragraphCacheEnabled"
                 <*> ltexObj  .: "completionEnabled"
+                <*> ltexObj  .: "diagnosticSeverity"
+                <*> ltexObj  .: "checkFrequency"
+                <*> ltexObj  .: "clearDiagnosticsWhenClosingFile"
+                <*> ltexObj  .: "statusBarItem"
+                <*> ltexObj  .: "trace"
 
