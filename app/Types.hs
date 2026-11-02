@@ -127,21 +127,46 @@ instance FromJSON LTeXNaturalLanguage where
 instance FromJSONKey LTeXNaturalLanguage where
     fromJSONKey = FromJSONKeyValue parseJSON
 
-data LTeXAutoDetectLanguage = LTeXAutoDetectLanguage
-                            deriving (Show, Eq, Ord)
+data LTeXMarkupLanguage = BibTeX | ConTeXt | LaTeX | Markdown | MDX | Typst | AsciiDoc | Neorg
+                        | Org | Quarto | ReStructuredText | RSweave | XHTML
+                        deriving (Show, Eq, Ord)
 
-instance ToJSON LTeXAutoDetectLanguage where
-    toJSON LTeXAutoDetectLanguage = String "auto"
+instance ToJSON LTeXMarkupLanguage where
+    toJSON BibTeX           = String "bibtex"
+    toJSON ConTeXt          = String "context"
+    toJSON LaTeX            = String "latex"
+    toJSON Markdown         = String "markdown"
+    toJSON MDX              = String "mdx"
+    toJSON Typst            = String "typst"
+    toJSON AsciiDoc         = String "asciidoc"
+    toJSON Neorg            = String "neorg"
+    toJSON Org              = String "org"
+    toJSON Quarto           = String "quarto"
+    toJSON ReStructuredText = String "restructuredtext"
+    toJSON RSweave          = String "rsweave"
+    toJSON XHTML            = String "html"
 
-instance ToJSONKey LTeXAutoDetectLanguage where
+instance ToJSONKey LTeXMarkupLanguage where
     toJSONKey = ToJSONKeyValue toJSON toEncoding
 
-instance FromJSON LTeXAutoDetectLanguage where
-    parseJSON (String "auto") = pure LTeXAutoDetectLanguage
+instance FromJSON LTeXMarkupLanguage where
+    parseJSON (String "bibtex")           = pure BibTeX
+    parseJSON (String "context")          = pure ConTeXt
+    parseJSON (String "latex")            = pure LaTeX
+    parseJSON (String "markdown")         = pure Markdown
+    parseJSON (String "mdx")              = pure MDX
+    parseJSON (String "typst")            = pure Typst
+    parseJSON (String "asciidoc")         = pure AsciiDoc
+    parseJSON (String "neorg")            = pure Neorg
+    parseJSON (String "org")              = pure Org
+    parseJSON (String "quatro")           = pure Quarto
+    parseJSON (String "restructuredtext") = pure ReStructuredText
+    parseJSON (String "rsweave")          = pure RSweave
+    parseJSON (String "html")             = pure XHTML
 
-    parseJSON invalid = prependFailure "parsing LTeXAutoDetectLanguage failed, " (unexpected invalid)
+    parseJSON invalid = prependFailure "parsing LTeXMarkupLanguage failed, " (unexpected invalid)
 
-instance FromJSONKey LTeXAutoDetectLanguage where
+instance FromJSONKey LTeXMarkupLanguage where
     fromJSONKey = FromJSONKeyValue parseJSON
 
 data LTeXProgrammingLanguage = ShellScript | C | CSharp | CPP | Clojure | CoffeeScript | Dart
@@ -194,6 +219,9 @@ instance ToJSON LTeXProgrammingLanguage where
     toJSON Verilog         = String "verilog"
     toJSON VisualBasic     = String "vb"
 
+instance ToJSONKey LTeXProgrammingLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
 instance FromJSON LTeXProgrammingLanguage where
     parseJSON (String "shellscript")     = pure ShellScript
     parseJSON (String "c")               = pure C
@@ -237,6 +265,43 @@ instance FromJSON LTeXProgrammingLanguage where
     parseJSON (String "vb")              = pure VisualBasic
 
     parseJSON invalid = prependFailure "parsing LTeXProgrammingLanguage failed, " (unexpected invalid)
+
+instance FromJSONKey LTeXProgrammingLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXAutoDetectLanguage = LTeXAutoDetectLanguage
+                            deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXAutoDetectLanguage where
+    toJSON LTeXAutoDetectLanguage = String "auto"
+
+instance ToJSONKey LTeXAutoDetectLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXAutoDetectLanguage where
+    parseJSON (String "auto") = pure LTeXAutoDetectLanguage
+
+    parseJSON invalid = prependFailure "parsing LTeXAutoDetectLanguage failed, " (unexpected invalid)
+
+instance FromJSONKey LTeXAutoDetectLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXNoneLanguage = LTeXNoneLanguage
+                      deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXNoneLanguage where
+    toJSON LTeXNoneLanguage = String ""
+
+instance ToJSONKey LTeXNoneLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXNoneLanguage where
+    parseJSON (String "") = pure LTeXNoneLanguage
+
+    parseJSON invalid = prependFailure "parsing LTeXNoneLanguage failed, " (unexpected invalid)
+
+instance FromJSONKey LTeXNoneLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
 
 data LTeXEnabled = LTeXEnabledBool Bool
                  | LTeXEnabledArray [Text]
