@@ -171,6 +171,88 @@ hiddenFalsePositivesFromText text =
         Right value -> pure value
         Left  err   -> fail err
 
+data BibTeXConfig = BibTeXConfig
+    { fields :: Map Text Bool
+    }
+    deriving (Show, Eq)
+
+instance ToJSON BibTeXConfig where
+    toJSON conf = object
+        [ "fields" .= fields conf
+        ]
+
+instance FromJSON BibTeXConfig where
+    parseJSON = withObject "BibTeXConfig" $ \obj -> BibTeXConfig
+        <$> obj .: "fields"
+
+data LTeXAction = LTeXActionDefault
+                | LTeXActionIgnore
+                | LTeXActionDummy
+                | LTeXActionPluralDummy
+                | LTeXActionVowelDummy
+                deriving (Show, Eq)
+
+instance ToJSON LTeXAction where
+    toJSON LTeXActionDefault     = String "default"
+    toJSON LTeXActionIgnore      = String "ignore"
+    toJSON LTeXActionDummy       = String "dummy"
+    toJSON LTeXActionPluralDummy = String "pluralDummy"
+    toJSON LTeXActionVowelDummy  = String "vowelDummy"
+
+instance FromJSON LTeXAction where
+    parseJSON (String "default")     = pure LTeXActionDefault
+    parseJSON (String "ignore")      = pure LTeXActionIgnore
+    parseJSON (String "dummy")       = pure LTeXActionDummy
+    parseJSON (String "pluralDummy") = pure LTeXActionPluralDummy
+    parseJSON (String "vowelDummy")  = pure LTeXActionVowelDummy
+
+    parseJSON invalid = prependFailure "parsing LTeXAction failed, " (unexpected invalid)
+
+data LaTeXEnvironmentAction = LaTeXEnvironmentActionDefault
+                            | LaTeXEnvironmentActionIgnore
+                            deriving (Show, Eq)
+
+instance ToJSON LaTeXEnvironmentAction where
+    toJSON LaTeXEnvironmentActionDefault = String "default"
+    toJSON LaTeXEnvironmentActionIgnore  = String "ignore"
+
+instance FromJSON LaTeXEnvironmentAction where
+    parseJSON (String "default") = pure LaTeXEnvironmentActionDefault
+    parseJSON (String "ignore")  = pure LaTeXEnvironmentActionIgnore
+
+    parseJSON invalid = prependFailure "parsing LaTeXEnvironmentAction failed, " (unexpected invalid)
+
+data LaTeXConfig = LaTeXConfig
+    { commands     :: Map Text LTeXAction
+    , environments :: Map Text LaTeXEnvironmentAction
+    }
+    deriving (Show, Eq)
+
+instance ToJSON LaTeXConfig where
+    toJSON conf = object
+        [ "commands"     .= commands conf
+        , "environments" .= environments conf
+        ]
+
+instance FromJSON LaTeXConfig where
+    parseJSON = withObject "LaTeXConfig" $ \obj -> LaTeXConfig
+        <$> obj .: "commands"
+        <*> obj .: "environments"
+
+data MarkdownConfig = MarkdownConfig
+    { nodes :: Map Text LTeXAction
+    }
+    deriving (Show, Eq)
+
+instance ToJSON MarkdownConfig where
+    toJSON conf = object
+        [ "nodes" .= nodes conf
+        ]
+
+instance FromJSON MarkdownConfig where
+    parseJSON = withObject "MarkdownConfig" $ \obj -> MarkdownConfig
+        <$> obj .: "nodes"
+
 data LTeXConfig = LTeXConfig
     { enabled              :: LTeXEnabled
     , language             :: LTeXLanguage
@@ -178,6 +260,9 @@ data LTeXConfig = LTeXConfig
     , disabledRules        :: Map LTeXLanguage [Text]
     , enabledRules         :: Map LTeXLanguage [Text]
     , hiddenFalsePositives :: Map LTeXLanguage [HiddenFalsePositives]
+    , bibtex               :: BibTeXConfig
+    , latex                :: LaTeXConfig
+    , markdown             :: MarkdownConfig
     }
     deriving (Show, Eq)
 
@@ -190,6 +275,9 @@ instance ToJSON LTeXConfig where
             , "disabledRules"        .= disabledRules conf
             , "enabledRules"         .= enabledRules conf
             , "hiddenFalsePositives" .= fmap (map hiddenFalsePositivesToText) (hiddenFalsePositives conf)
+            , "bibtex"               .= bibtex conf
+            , "latex"                .= latex conf
+            , "markdown"             .= markdown conf
             ]
         ]
 
@@ -199,10 +287,13 @@ instance FromJSON LTeXConfig where
             withObject "ltex" parseLTeXConfig ltex
         where
             parseLTeXConfig = \ltexObj -> LTeXConfig
-                <$> ltexObj .: "enabled"
-                <*> ltexObj .: "language"
-                <*> ltexObj .: "dictionary"
-                <*> ltexObj .: "disabledRules"
-                <*> ltexObj .: "enabledRules"
+                <$> ltexObj  .: "enabled"
+                <*> ltexObj  .: "language"
+                <*> ltexObj  .: "dictionary"
+                <*> ltexObj  .: "disabledRules"
+                <*> ltexObj  .: "enabledRules"
                 <*> (ltexObj .: "hiddenFalsePositives" >>= traverse (traverse hiddenFalsePositivesFromText))
+                <*> ltexObj  .: "bibtex"
+                <*> ltexObj  .: "latex"
+                <*> ltexObj  .: "markdown"
 
