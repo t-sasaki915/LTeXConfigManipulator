@@ -367,14 +367,14 @@ instance FromJSON LTeXLsLogLevel where
     parseJSON invalid = prependFailure "parsing LTeXLsLogLevel failed, " (unexpected invalid)
 
 data LTeXLs = LTeXLs
-    { path     :: Text
+    { ltexLsPath     :: Text
     , logLevel :: LTeXLsLogLevel
     }
     deriving (Show, Eq)
 
 instance ToJSON LTeXLs where
     toJSON conf = object
-        [ "path"     .= path conf
+        [ "path"     .= ltexLsPath conf
         , "logLevel" .= logLevel conf
         ]
 
@@ -382,6 +382,26 @@ instance FromJSON LTeXLs where
     parseJSON = withObject "LTeXLs" $ \obj -> LTeXLs
         <$> obj .: "path"
         <*> obj .: "logLevel"
+
+data Java = Java
+    { javaPath        :: Text
+    , initialHeapSize :: Int
+    , maximumHeapSize :: Int
+    }
+    deriving (Show, Eq)
+
+instance ToJSON Java where
+    toJSON conf = object
+        [ "path"            .= javaPath conf
+        , "initialHeapSize" .= initialHeapSize conf
+        , "maximumHeapSize" .= maximumHeapSize conf
+        ]
+
+instance FromJSON Java where
+    parseJSON = withObject "Java" $ \obj -> Java
+        <$> obj .: "path"
+        <*> obj .: "initialHeapSize"
+        <*> obj .: "maximumHeapSize"
 
 data LTeXConfig = LTeXConfig
     { enabled                   :: LTeXEnabled
@@ -398,6 +418,12 @@ data LTeXConfig = LTeXConfig
     , languageToolHttpServerUri :: Text
     , languageToolOrg           :: LanguageToolOrg
     , ltexLs                    :: LTeXLs
+    , java                      :: Java
+    , sentenceCacheSize         :: Int
+    , maxRequestSize            :: Int
+    , paragraphCacheTtlMinutes  :: Int
+    , paragraphCacheEnabled     :: Bool
+    , completionEnabled         :: Bool
     }
     deriving (Show, Eq)
 
@@ -418,6 +444,12 @@ instance ToJSON LTeXConfig where
             , "languageToolHttpServerUri" .= languageToolHttpServerUri conf
             , "languageToolOrg"           .= languageToolOrg conf
             , "ltex-ls"                   .= ltexLs conf
+            , "java"                      .= java conf
+            , "sentenceCacheSize"         .= sentenceCacheSize conf
+            , "maxRequestSize"            .= maxRequestSize conf
+            , "paragraphCacheTtlMinutes"  .= paragraphCacheTtlMinutes conf
+            , "paragraphCacheEnabled"     .= paragraphCacheEnabled conf
+            , "completionEnabled"         .= completionEnabled conf
             ]
         ]
 
@@ -441,4 +473,10 @@ instance FromJSON LTeXConfig where
                 <*> ltexObj  .: "languageToolHttpServerUri"
                 <*> ltexObj  .: "languageToolOrg"
                 <*> ltexObj  .: "ltex-ls"
+                <*> ltexObj  .: "java"
+                <*> ltexObj  .: "sentenceCacheSize"
+                <*> ltexObj  .: "maxRequestSize"
+                <*> ltexObj  .: "paragraphCacheTtlMinutes"
+                <*> ltexObj  .: "paragraphCacheEnabled"
+                <*> ltexObj  .: "completionEnabled"
 
