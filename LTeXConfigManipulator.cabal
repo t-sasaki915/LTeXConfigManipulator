@@ -23,6 +23,7 @@ executable LTeXConfigManipulator
   other-modules:
       Paths_LTeXConfigManipulator
       Types
+      LTeXConfigTypes
   autogen-modules:
       Paths_LTeXConfigManipulator
   hs-source-dirs:
