@@ -939,39 +939,39 @@ data SomeConfigPath where
 configPathFromText :: Text -> Maybe SomeConfigPath
 configPathFromText input =
     case Text.splitOn "." input of
-        ["enabled"]                             -> Just (SomeConfigPath Enabled)
-        ["language"]                            -> Just (SomeConfigPath Language)
-        ("dictionary" : rest)                   -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . Dictionary
-        ("disabledRules" : rest)                -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . DisabledRules
-        ("enabledRules" : rest)                 -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . EnabledRules
-        ("hiddenFalsePositives" : rest)         -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . HiddenFalsePositives
-        ("bibtex" : "fields" : rest)            -> Just (SomeConfigPath (BibTeXFields      (unsplitRest rest)))
-        ("latex" : "commands" : rest)           -> Just (SomeConfigPath (LaTeXCommands     (unsplitRest rest)))
-        ("latex" : "environments" : rest)       -> Just (SomeConfigPath (LaTeXEnvironments (unsplitRest rest)))
-        ("markdown" : "nodes" : rest)           -> Just (SomeConfigPath (MarkdownNodes     (unsplitRest rest)))
-        ("configurationTarget" : rest)          -> decodeRestAsTargetKey rest >>= pure . SomeConfigPath . ConfigurationTarget
-        ["additionalRules", "enablePickyRules"] -> Just (SomeConfigPath AdditionalRulesEnablePickyRules)
-        ["additionalRules", "motherTongue"]     -> Just (SomeConfigPath AdditionalRulesMotherTongue)
-        ["additionalRules", "languageModel"]    -> Just (SomeConfigPath AdditionalRulesLanguageModel)
-        ["languageToolHttpServerUri"]           -> Just (SomeConfigPath LanguageToolHttpServerUri)
-        ["languageToolOrg", "username"]         -> Just (SomeConfigPath LanguageToolOrgUsername)
-        ["languageToolOrg", "apiKey"]           -> Just (SomeConfigPath LanguageToolOrgApiKey)
-        ["ltex-ls", "path"]                     -> Just (SomeConfigPath LTeXLsPath)
-        ["ltex-ls", "logLevel"]                 -> Just (SomeConfigPath LTeXLsLogLevel)
-        ["java", "path"]                        -> Just (SomeConfigPath JavaPath)
-        ["java", "initialHeapSize"]             -> Just (SomeConfigPath JavaInitialHeapSize)
-        ["java", "maximumHeapSize"]             -> Just (SomeConfigPath JavaMaximumHeapSize)
-        ["sentenceCacheSize"]                   -> Just (SomeConfigPath SentenceCacheSize)
-        ["maxRequestSize"]                      -> Just (SomeConfigPath MaxRequestSize)
-        ["paragraphCacheTtlMinutes"]            -> Just (SomeConfigPath ParagraphCacheTtlMinutes)
-        ["paragraphCacheEnabled"]               -> Just (SomeConfigPath ParagraphCacheEnabled)
-        ["completionEnabled"]                   -> Just (SomeConfigPath CompletionEnabled)
-        ["diagnosticSeverity"]                  -> Just (SomeConfigPath DiagnosticSeverity)
-        ["checkFrequency"]                      -> Just (SomeConfigPath CheckFrequency)
-        ["clearDiagnosticsWhenClosingFile"]     -> Just (SomeConfigPath ClearDiagnosticsWhenClosingFile)
-        ["statusBarItem"]                       -> Just (SomeConfigPath StatusBarItem)
-        ["trace", "server"]                     -> Just (SomeConfigPath TraceServer)
-        _                                       -> Nothing
+        ["enabled"]                               -> Just (SomeConfigPath Enabled)
+        ["language"]                              -> Just (SomeConfigPath Language)
+        ("dictionary" : rest : rest')             -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . Dictionary
+        ("disabledRules" : rest : rest')          -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . DisabledRules
+        ("enabledRules" : rest : rest')           -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . EnabledRules
+        ("hiddenFalsePositives" : rest : rest')   -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . HiddenFalsePositives
+        ("bibtex" : "fields" : rest : rest')      -> Just (SomeConfigPath (BibTeXFields      (unsplitRest (rest : rest'))))
+        ("latex" : "commands" : rest : rest')     -> Just (SomeConfigPath (LaTeXCommands     (unsplitRest (rest : rest'))))
+        ("latex" : "environments" : rest : rest') -> Just (SomeConfigPath (LaTeXEnvironments (unsplitRest (rest : rest'))))
+        ("markdown" : "nodes" : rest : rest')     -> Just (SomeConfigPath (MarkdownNodes     (unsplitRest (rest : rest'))))
+        ("configurationTarget" : rest : rest')    -> decodeRestAsTargetKey (rest : rest') >>= pure . SomeConfigPath . ConfigurationTarget
+        ["additionalRules", "enablePickyRules"]   -> Just (SomeConfigPath AdditionalRulesEnablePickyRules)
+        ["additionalRules", "motherTongue"]       -> Just (SomeConfigPath AdditionalRulesMotherTongue)
+        ["additionalRules", "languageModel"]      -> Just (SomeConfigPath AdditionalRulesLanguageModel)
+        ["languageToolHttpServerUri"]             -> Just (SomeConfigPath LanguageToolHttpServerUri)
+        ["languageToolOrg", "username"]           -> Just (SomeConfigPath LanguageToolOrgUsername)
+        ["languageToolOrg", "apiKey"]             -> Just (SomeConfigPath LanguageToolOrgApiKey)
+        ["ltex-ls", "path"]                       -> Just (SomeConfigPath LTeXLsPath)
+        ["ltex-ls", "logLevel"]                   -> Just (SomeConfigPath LTeXLsLogLevel)
+        ["java", "path"]                          -> Just (SomeConfigPath JavaPath)
+        ["java", "initialHeapSize"]               -> Just (SomeConfigPath JavaInitialHeapSize)
+        ["java", "maximumHeapSize"]               -> Just (SomeConfigPath JavaMaximumHeapSize)
+        ["sentenceCacheSize"]                     -> Just (SomeConfigPath SentenceCacheSize)
+        ["maxRequestSize"]                        -> Just (SomeConfigPath MaxRequestSize)
+        ["paragraphCacheTtlMinutes"]              -> Just (SomeConfigPath ParagraphCacheTtlMinutes)
+        ["paragraphCacheEnabled"]                 -> Just (SomeConfigPath ParagraphCacheEnabled)
+        ["completionEnabled"]                     -> Just (SomeConfigPath CompletionEnabled)
+        ["diagnosticSeverity"]                    -> Just (SomeConfigPath DiagnosticSeverity)
+        ["checkFrequency"]                        -> Just (SomeConfigPath CheckFrequency)
+        ["clearDiagnosticsWhenClosingFile"]       -> Just (SomeConfigPath ClearDiagnosticsWhenClosingFile)
+        ["statusBarItem"]                         -> Just (SomeConfigPath StatusBarItem)
+        ["trace", "server"]                       -> Just (SomeConfigPath TraceServer)
+        _                                         -> Nothing
     where
         unsplitRest = Text.intercalate "."
 
