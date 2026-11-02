@@ -1,13 +1,10 @@
 module Main (main) where
 
-import Data.Aeson
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Data.Text.Encoding (encodeUtf8)
 import Options.Applicative hiding (Success)
 import System.Directory
-import System.Exit (exitFailure)
 import System.FilePath ((</>), takeDirectory)
 
 import Types
@@ -52,28 +49,16 @@ searchForProjectRoot (TeXFilePath texFilePath) = do
                 Just projRoot -> pure (ProjectRootPath projRoot)
                 Nothing       -> pure (ProjectRootPath startDirectory)
 
-getLTeXConfig :: ProjectRootPath -> IO (Either String LTeXConfig)
-getLTeXConfig (ProjectRootPath projRoot) =
-    let configFilePath = projRoot </> ".ltex" </> "config.json" in
-        doesFileExist configFilePath >>= \case
-            True ->
-                BS.readFile configFilePath >>=
-                    pure . eitherDecode
-
-            False ->
-                pure (Right defaultLTeXConfig)
-
 withProjectRoot :: TeXFilePath -> (ProjectRootPath -> IO ()) -> IO ()
 withProjectRoot texFilePath programme =
     searchForProjectRoot texFilePath >>=
         programme
 
-withLTeXConfig :: TeXFilePath -> ((LTeXConfig, ProjectRootPath) -> IO()) -> IO ()
-withLTeXConfig texFilePath programme =
-    withProjectRoot texFilePath $ \projRoot ->
-        getLTeXConfig projRoot >>= \case
-            Right config -> programme (config, projRoot)
-            Left err     -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
+withLTeXConfigAndProjectRoot :: TeXFilePath -> ((LTeXConfig, ProjectRootPath) -> IO()) -> IO ()
+withLTeXConfigAndProjectRoot texFilePath programme =
+    withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->
+        withLTeXConfig projRoot $ \ltexConfig ->
+            programme (ltexConfig, ProjectRootPath projRoot)
 
 data Command = GetCommand             TeXFilePath SomeConfigPath
              | SetCommand             TeXFilePath SomeConfigPath Text
@@ -125,56 +110,23 @@ commandLineParser =
     info (commandParser <**> helper)
         (fullDesc <> progDesc "A command-line tool for managing project-specific LTeX+ configurations with a focus on Vim integration.")
 
-parseConfigValue :: FromJSON a => Text -> Either String a
-parseConfigValue input =
-    case eitherDecodeStrict (encodeUtf8 input) of
-        Right jsonValue ->
-            case fromJSON jsonValue of
-                Success val -> Right val
-                Error   err -> Left  err
-
-        Left _ ->
-            case fromJSON (String input) of
-                Success val -> Right val
-                Error   err -> Left  err
-
-withValueForOverwrite :: FromJSON a => ConfigPath a b -> Text -> (a -> IO()) -> IO ()
-withValueForOverwrite _ configValue programme =
-    case parseConfigValue configValue of
-        Right configValue' ->
-            programme configValue'
-
-        Left err ->
-            putStrLn err >> exitFailure
-
-withValueForListAction :: FromJSON b => ConfigPath a b -> Text -> (b -> IO ()) -> IO ()
-withValueForListAction _ configValue programme =
-    case parseConfigValue configValue of
-        Right configValue' ->
-            programme configValue'
-
-        Left err ->
-            putStrLn err >> exitFailure
-
 main :: IO ()
 main = execParser commandLineParser >>= \case
     (GetCommand texFilePath (SomeConfigPath configPath)) ->
-        withLTeXConfig texFilePath $ \(currentConf, _) ->
-            case toJSON (getValueFromConfig configPath currentConf) of
-                Null -> error "The specified configuration key does not exit."
-                x    -> BS.putStr (encode x)
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+            BS.putStr $ showItemInJson (getLTeXConfigValue configPath currentConf)
 
     (SetCommand texFilePath (SomeConfigPath configPath) configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, _) ->
-            withValueForOverwrite configPath configValue $ \configValue' ->
-                BS.putStr $ encode $ setValueToConfig configPath configValue' currentConf
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+            withValueTypeA configPath configValue $ \configValue' ->
+                BS.putStr $ showConfigInJson (setLTeXConfigValue configPath configValue' currentConf)
 
     (AddCommand texFilePath (SomeConfigPath configPath) configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, _) ->
-            withValueForListAction configPath configValue $ \configValue' ->
-                case doAppend (getValueFromConfig configPath currentConf) configValue' of
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+            withValueTypeB configPath configValue $ \configValue' ->
+                case doAppend (getLTeXConfigValue configPath currentConf) configValue' of
                     Right val' ->
-                        BS.putStr $ encode $ setValueToConfig configPath val' currentConf
+                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath val' currentConf)
 
                     Left AppendNotSupported ->
                         putStrLn "APPEND NOT SUPPORTED!!"
@@ -183,11 +135,11 @@ main = execParser commandLineParser >>= \case
                         putStrLn "ALREADY IN LIST!!"
 
     (RemoveCommand texFilePath (SomeConfigPath configPath) configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, _) ->
-            withValueForListAction configPath configValue $ \configValue' ->
-                case doRemove (getValueFromConfig configPath currentConf) configValue' of
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+            withValueTypeB configPath configValue $ \configValue' ->
+                case doRemove (getLTeXConfigValue configPath currentConf) configValue' of
                     Right val' ->
-                        BS.putStr $ encode $ setValueToConfig configPath val' currentConf
+                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath val' currentConf)
 
                     Left RemoveNotSupported ->
                         putStrLn "REMOVE NOT SUPPORTED!!"
@@ -200,6 +152,6 @@ main = execParser commandLineParser >>= \case
             putStrLn projRoot
 
     (WorkspaceConfigCommand texFilePath) ->
-        withLTeXConfig texFilePath $ \(currentConf, _) ->
-            BS.putStr (encode currentConf)
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+            BS.putStr (showConfigInJson currentConf)
 
