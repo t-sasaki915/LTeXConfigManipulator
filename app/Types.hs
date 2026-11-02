@@ -8,7 +8,7 @@
 module Types where
 
 import Control.Applicative ((<|>))
-import Control.Lens (at, makeLenses, view, Lens')
+import Control.Lens (at, makeLenses, view, set, Lens')
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (toStrict)
@@ -974,7 +974,7 @@ data ConfigPath a where
     TraceServer                     :: ConfigPath TraceServerMode
 
 data SomeConfigPath where
-    SomeConfigPath :: (AllowedOperations a, ToJSON a) => ConfigPath a -> SomeConfigPath
+    SomeConfigPath :: (AllowedOperations a, ToJSON a, FromJSON a) => ConfigPath a -> SomeConfigPath
 
 configPathLens :: ConfigPath a -> Lens' LTeXConfig a
 configPathLens = \case
@@ -1030,6 +1030,9 @@ configPathLens = \case
 
 getValueFromConfig :: ConfigPath a -> LTeXConfig -> a
 getValueFromConfig = view . configPathLens
+
+setValueToConfig :: ConfigPath a -> a -> LTeXConfig -> LTeXConfig
+setValueToConfig path val conf = set (configPathLens path) val conf
 
 configPathFromText :: Text -> Maybe SomeConfigPath
 configPathFromText input =

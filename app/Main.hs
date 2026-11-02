@@ -1,9 +1,11 @@
 module Main (main) where
 
 import Data.Aeson
+import Data.Aeson.Types hiding (Parser)
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Text.Encoding (encodeUtf8)
 import Options.Applicative hiding (Success)
 import System.Directory
 import System.Exit (exitFailure)
@@ -74,11 +76,12 @@ withLTeXConfig texFilePath programme =
             Right config -> programme (config, projRoot)
             Left err     -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
 
-data Command = GetCommand         TeXFilePath SomeConfigPath
-             | SetCommand         TeXFilePath SomeConfigPath Text
-             | AddCommand         TeXFilePath SomeConfigPath Text
-             | RemoveCommand      TeXFilePath SomeConfigPath Text
-             | ProjectRootCommand TeXFilePath
+data Command = GetCommand             TeXFilePath SomeConfigPath
+             | SetCommand             TeXFilePath SomeConfigPath Text
+             | AddCommand             TeXFilePath SomeConfigPath Text
+             | RemoveCommand          TeXFilePath SomeConfigPath Text
+             | ProjectRootCommand     TeXFilePath
+             | WorkspaceConfigCommand TeXFilePath
 
 texFileOptionParser :: Parser TeXFilePath
 texFileOptionParser = TeXFilePath <$> strOption
@@ -113,6 +116,9 @@ commandParser =
        <> command "projectRoot"
             (info (ProjectRootCommand <$> texFileOptionParser)
                 (progDesc "Show a calculated project root path"))
+       <> command "workspaceConfig"
+            (info (WorkspaceConfigCommand <$> texFileOptionParser)
+                (progDesc "Show current workspace config in json"))
         )
 
 commandLineParser :: ParserInfo Command
@@ -120,15 +126,36 @@ commandLineParser =
     info (commandParser <**> helper)
         (fullDesc <> progDesc "A command-line tool for managing project-specific LTeX+ configurations with a focus on Vim integration.")
 
+parseConfigValue :: FromJSON a => Text -> Either String a
+parseConfigValue input =
+    case eitherDecodeStrict (encodeUtf8 input) of
+        Right jsonValue ->
+            case fromJSON jsonValue of
+                Success val -> Right val
+                Error   err -> Left  err
+
+        Left _ ->
+            case fromJSON (String input) of
+                Success val -> Right val
+                Error   err -> Left  err
+
 main :: IO ()
 main = execParser commandLineParser >>= \case
     (GetCommand texFilePath (SomeConfigPath configPath)) ->
         withLTeXConfig texFilePath $ \(currentConf, _) ->
-            BS.putStr (encode (getValueFromConfig configPath currentConf))
+            case toJSON (getValueFromConfig configPath currentConf) of
+                Null -> error "The specified configuration key does not exit."
+                x    -> BS.putStr (encode x)
 
-    (SetCommand texFilePath configPath configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
-            putStrLn "SET" >> print currentConf
+    (SetCommand texFilePath (SomeConfigPath configPath) configValue) ->
+        withLTeXConfig texFilePath $ \(currentConf, _) ->
+            case parseConfigValue configValue of
+                Right configVal ->
+                    let test = setValueToConfig configPath configVal currentConf in
+                        print test
+
+                Left err ->
+                    error err
 
     (AddCommand texFilePath configPath configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
@@ -141,4 +168,8 @@ main = execParser commandLineParser >>= \case
     (ProjectRootCommand texFilePath) ->
         withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->
             putStrLn projRoot
+
+    (WorkspaceConfigCommand texFilePath) ->
+        withLTeXConfig texFilePath $ \(currentConf, _) ->
+            BS.putStr (encode currentConf)
 
