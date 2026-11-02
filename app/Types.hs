@@ -81,7 +81,10 @@ instance ToJSON LTeXNaturalLanguage where
     toJSON Ukrainian                 = String "uk-UA"
 
 instance ToJSONKey LTeXNaturalLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXNaturalLanguage where
     parseJSON (String "ar")                         = pure Arabic
@@ -136,7 +139,7 @@ instance FromJSON LTeXNaturalLanguage where
     parseJSON invalid = prependFailure "parsing LTeXNaturalLanguage failed, " (unexpected invalid)
 
 instance FromJSONKey LTeXNaturalLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXMarkupLanguage = BibTeX | ConTeXt | LaTeX | Markdown | MDX | Typst | AsciiDoc | Neorg
                         | Org | Quarto | ReStructuredText | RSweave | XHTML
@@ -158,7 +161,10 @@ instance ToJSON LTeXMarkupLanguage where
     toJSON XHTML            = String "html"
 
 instance ToJSONKey LTeXMarkupLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXMarkupLanguage where
     parseJSON (String "bibtex")           = pure BibTeX
@@ -178,7 +184,7 @@ instance FromJSON LTeXMarkupLanguage where
     parseJSON invalid = prependFailure "parsing LTeXMarkupLanguage failed, " (unexpected invalid)
 
 instance FromJSONKey LTeXMarkupLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXProgrammingLanguage = ShellScript | C | CSharp | CPP | Clojure | CoffeeScript | Dart
                              | Elixir | Elm | EmacsLisp | Erlang | FSharp | FORTRAN | Go | Groovy
@@ -231,7 +237,10 @@ instance ToJSON LTeXProgrammingLanguage where
     toJSON VisualBasic     = String "vb"
 
 instance ToJSONKey LTeXProgrammingLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXProgrammingLanguage where
     parseJSON (String "shellscript")     = pure ShellScript
@@ -278,7 +287,7 @@ instance FromJSON LTeXProgrammingLanguage where
     parseJSON invalid = prependFailure "parsing LTeXProgrammingLanguage failed, " (unexpected invalid)
 
 instance FromJSONKey LTeXProgrammingLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXAutoDetectLanguage = LTeXAutoDetectLanguage
                             deriving (Show, Eq, Ord)
@@ -287,7 +296,10 @@ instance ToJSON LTeXAutoDetectLanguage where
     toJSON LTeXAutoDetectLanguage = String "auto"
 
 instance ToJSONKey LTeXAutoDetectLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXAutoDetectLanguage where
     parseJSON (String "auto") = pure LTeXAutoDetectLanguage
@@ -295,7 +307,7 @@ instance FromJSON LTeXAutoDetectLanguage where
     parseJSON invalid = prependFailure "parsing LTeXAutoDetectLanguage failed, " (unexpected invalid)
 
 instance FromJSONKey LTeXAutoDetectLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXNoneLanguage = LTeXNoneLanguage
                       deriving (Show, Eq, Ord)
@@ -304,7 +316,10 @@ instance ToJSON LTeXNoneLanguage where
     toJSON LTeXNoneLanguage = String ""
 
 instance ToJSONKey LTeXNoneLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXNoneLanguage where
     parseJSON (String "") = pure LTeXNoneLanguage
@@ -312,7 +327,7 @@ instance FromJSON LTeXNoneLanguage where
     parseJSON invalid = prependFailure "parsing LTeXNoneLanguage failed, " (unexpected invalid)
 
 instance FromJSONKey LTeXNoneLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXMarkupOrProgrammingLanguage = LTeXMarkupOrProgrammingLanguageMarkup      LTeXMarkupLanguage
                                      | LTeXMarkupOrProgrammingLanguageProgramming LTeXProgrammingLanguage
@@ -323,7 +338,10 @@ instance ToJSON LTeXMarkupOrProgrammingLanguage where
     toJSON (LTeXMarkupOrProgrammingLanguageProgramming x) = toJSON x
 
 instance ToJSONKey LTeXMarkupOrProgrammingLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXMarkupOrProgrammingLanguage where
     parseJSON value =
@@ -331,7 +349,7 @@ instance FromJSON LTeXMarkupOrProgrammingLanguage where
         <|> (LTeXMarkupOrProgrammingLanguageProgramming <$> parseJSON value)
 
 instance FromJSONKey LTeXMarkupOrProgrammingLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXNaturalOrAutoDetectLanguage = LTeXNaturalOrAutoDetectLanguageNatural LTeXNaturalLanguage
                                      | LTeXNaturalOrAutoDetectLanguageAuto    LTeXAutoDetectLanguage
@@ -342,7 +360,10 @@ instance ToJSON LTeXNaturalOrAutoDetectLanguage where
     toJSON (LTeXNaturalOrAutoDetectLanguageAuto x)    = toJSON x
 
 instance ToJSONKey LTeXNaturalOrAutoDetectLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXNaturalOrAutoDetectLanguage where
     parseJSON value =
@@ -350,7 +371,7 @@ instance FromJSON LTeXNaturalOrAutoDetectLanguage where
         <|> (LTeXNaturalOrAutoDetectLanguageNatural <$> parseJSON value)
 
 instance FromJSONKey LTeXNaturalOrAutoDetectLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXNaturalOrNoneLanguage = LTeXNaturalOrNoneLanguageNatural LTeXNaturalLanguage
                                | LTeXNaturalOrNoneLanguageNone    LTeXNoneLanguage
@@ -361,7 +382,10 @@ instance ToJSON LTeXNaturalOrNoneLanguage where
     toJSON (LTeXNaturalOrNoneLanguageNone x)    = toJSON x
 
 instance ToJSONKey LTeXNaturalOrNoneLanguage where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXNaturalOrNoneLanguage where
     parseJSON value =
@@ -369,7 +393,7 @@ instance FromJSON LTeXNaturalOrNoneLanguage where
         <|> (LTeXNaturalOrNoneLanguageNatural <$> parseJSON value)
 
 instance FromJSONKey LTeXNaturalOrNoneLanguage where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXEnabled = LTeXEnabledBool Bool
                  | LTeXEnabledArray [LTeXMarkupOrProgrammingLanguage]
@@ -528,7 +552,10 @@ instance ToJSON LTeXConfigurationTargetKey where
     toJSON LTeXConfigurationTargetKeyHiddenFalsePositives = String "hiddenFalsePositives"
 
 instance ToJSONKey LTeXConfigurationTargetKey where
-    toJSONKey = ToJSONKeyValue toJSON toEncoding
+    toJSONKey = toJSONKeyText $ \x ->
+        case toJSON x of
+            String t -> t
+            _        -> undefined
 
 instance FromJSON LTeXConfigurationTargetKey where
     parseJSON (String "dictionary")           = pure LTeXConfigurationTargetKeyDictionary
@@ -538,7 +565,7 @@ instance FromJSON LTeXConfigurationTargetKey where
     parseJSON invalid = prependFailure "parsing LTeXConfigurationTargetKey failed, " (unexpected invalid)
 
 instance FromJSONKey LTeXConfigurationTargetKey where
-    fromJSONKey = FromJSONKeyValue parseJSON
+    fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
 data LTeXConfigurationTargetValue = LTeXConfigurationTargetValueUser
                                   | LTeXConfigurationTargetValueWorkspace

@@ -154,19 +154,19 @@ main = execParser commandLineParser >>= \case
                         print test
 
                 Left err ->
-                    error err
+                    putStrLn err >> exitFailure
 
     (AddCommand texFilePath (SomeConfigPath configPath) configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, _) -> do
             case parseConfigValue configValue of
                 Right configVal ->
                     case doAppend (getValueFromConfig configPath currentConf) configVal of
-                        Right val'              -> BS.putStr (encode val')
+                        Right val'              -> BS.putStr (encode $ setValueToConfig configPath val' currentConf)
                         Left AppendNotSupported -> putStrLn "NOT SUPPORTED!!"
                         Left ItemAlreadyInList  -> putStrLn "ALREADY IN LIST!!"
 
                 Left err ->
-                    error err
+                    putStrLn err >> exitFailure
 
     (RemoveCommand texFilePath configPath configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
