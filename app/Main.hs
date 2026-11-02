@@ -122,9 +122,9 @@ commandLineParser =
 
 main :: IO ()
 main = execParser commandLineParser >>= \case
-    (GetCommand texFilePath configPath) ->
-        withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
-            putStrLn "GET" >> print currentConf
+    (GetCommand texFilePath (SomeConfigPath configPath)) ->
+        withLTeXConfig texFilePath $ \(currentConf, _) ->
+            BS.putStr (encode (getValueFromConfig configPath currentConf))
 
     (SetCommand texFilePath configPath configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, projRoot) ->

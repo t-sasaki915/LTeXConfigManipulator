@@ -974,7 +974,7 @@ data ConfigPath a where
     TraceServer                     :: ConfigPath TraceServerMode
 
 data SomeConfigPath where
-    SomeConfigPath :: AllowedOperations a => ConfigPath a -> SomeConfigPath
+    SomeConfigPath :: (AllowedOperations a, ToJSON a) => ConfigPath a -> SomeConfigPath
 
 configPathLens :: ConfigPath a -> Lens' LTeXConfig a
 configPathLens = \case
@@ -1087,17 +1087,10 @@ configPathFromText input =
     where
         unsplitRest = Text.intercalate "."
 
-        decodeRestAsNatLang   = decodeStrict . encodeUtf8 . unsplitRest
-        decodeRestAsTargetKey = decodeStrict . encodeUtf8 . unsplitRest
+        decodeRestAsNatLang   = parseMaybe parseJSON . String . unsplitRest
+        decodeRestAsTargetKey = parseMaybe parseJSON . String . unsplitRest
 
 data Operation = Get | Set | Add | Remove deriving (Show, Eq, Ord)
-
-operationFromText :: Text -> Maybe Operation
-operationFromText "get"    = Just Get
-operationFromText "set"    = Just Set
-operationFromText "add"    = Just Add
-operationFromText "remove" = Just Remove
-operationFromText _        = Nothing
 
 class AllowedOperations a where
     allowedOperations :: ConfigPath a -> [Operation]
