@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Main (main) where
 
 import Data.Aeson
@@ -140,10 +138,19 @@ parseConfigValue input =
                 Success val -> Right val
                 Error   err -> Left  err
 
-withParsedValue :: FromJSON b => ConfigPath a b -> Text -> (b -> IO ()) -> IO ()
-withParsedValue _ configValue programme =
+withValueForOverwrite :: FromJSON a => ConfigPath a b -> Text -> (a -> IO()) -> IO ()
+withValueForOverwrite _ configValue programme =
     case parseConfigValue configValue of
-        Right (configValue' :: b) ->
+        Right configValue' ->
+            programme configValue'
+
+        Left err ->
+            putStrLn err >> exitFailure
+
+withValueForListAction :: FromJSON b => ConfigPath a b -> Text -> (b -> IO ()) -> IO ()
+withValueForListAction _ configValue programme =
+    case parseConfigValue configValue of
+        Right configValue' ->
             programme configValue'
 
         Left err ->
@@ -159,30 +166,34 @@ main = execParser commandLineParser >>= \case
 
     (SetCommand texFilePath (SomeConfigPath configPath) configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, _) ->
-            case parseConfigValue configValue of
-                Right configVal ->
-                    let test = setValueToConfig configPath configVal currentConf in
-                        print test
-
-                Left err ->
-                    putStrLn err >> exitFailure
+            withValueForOverwrite configPath configValue $ \configValue' ->
+                BS.putStr $ encode $ setValueToConfig configPath configValue' currentConf
 
     (AddCommand texFilePath (SomeConfigPath configPath) configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, _) ->
-            withParsedValue configPath configValue $ \configValue' ->
+            withValueForListAction configPath configValue $ \configValue' ->
                 case doAppend (getValueFromConfig configPath currentConf) configValue' of
                     Right val' ->
                         BS.putStr $ encode $ setValueToConfig configPath val' currentConf
 
                     Left AppendNotSupported ->
-                        putStrLn "Not supported"
+                        putStrLn "APPEND NOT SUPPORTED!!"
 
                     Left ItemAlreadyInList ->
-                        putStrLn "already in list"
+                        putStrLn "ALREADY IN LIST!!"
 
-    (RemoveCommand texFilePath configPath configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
-            putStrLn "REMOVE" >> print currentConf
+    (RemoveCommand texFilePath (SomeConfigPath configPath) configValue) ->
+        withLTeXConfig texFilePath $ \(currentConf, _) ->
+            withValueForListAction configPath configValue $ \configValue' ->
+                case doRemove (getValueFromConfig configPath currentConf) configValue' of
+                    Right val' ->
+                        BS.putStr $ encode $ setValueToConfig configPath val' currentConf
+
+                    Left RemoveNotSupported ->
+                        putStrLn "REMOVE NOT SUPPORTED!!"
+
+                    Left ItemNotInList ->
+                        putStrLn "ITEM NOT IN LIST!!"
 
     (ProjectRootCommand texFilePath) ->
         withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->

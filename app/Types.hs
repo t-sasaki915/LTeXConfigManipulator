@@ -1148,6 +1148,12 @@ instance IsListActionDefined (Maybe [Text]) Text where
                 False -> Right (Just (list <> [newItem]))
                 True  -> Left ItemAlreadyInList
 
+    doRemove maybeList targetItem =
+        let list = fromMaybe [] maybeList in
+            case targetItem `elem` list of
+                True  -> Right (Just (filter (/= targetItem) list))
+                False -> Left ItemNotInList
+
 instance IsListActionDefined (Map LTeXNaturalLanguage [Text]) (LTeXNaturalLanguage, [Text]) where
 
 instance IsListActionDefined (Maybe [HiddenFalsePositivesValue]) HiddenFalsePositivesValue where
@@ -1156,6 +1162,12 @@ instance IsListActionDefined (Maybe [HiddenFalsePositivesValue]) HiddenFalsePosi
             case newItem `elem` list of
                 False -> Right (Just (list <> [newItem]))
                 True  -> Left ItemAlreadyInList
+
+    doRemove maybeList targetItem =
+        let list = fromMaybe [] maybeList in
+            case targetItem `elem` list of
+                True  -> Right (Just (filter (/= targetItem) list))
+                False -> Left ItemNotInList
 
 instance IsListActionDefined (Map LTeXNaturalLanguage [HiddenFalsePositivesValue]) (LTeXNaturalLanguage, [HiddenFalsePositivesValue]) where
 
