@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-missing-export-lists #-}
 module Types where
 
+import Control.Applicative ((<|>))
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (toStrict)
@@ -303,8 +304,65 @@ instance FromJSON LTeXNoneLanguage where
 instance FromJSONKey LTeXNoneLanguage where
     fromJSONKey = FromJSONKeyValue parseJSON
 
+data LTeXMarkupOrProgrammingLanguage = LTeXMarkupOrProgrammingLanguageMarkup      LTeXMarkupLanguage
+                                     | LTeXMarkupOrProgrammingLanguageProgramming LTeXProgrammingLanguage
+                                     deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXMarkupOrProgrammingLanguage where
+    toJSON (LTeXMarkupOrProgrammingLanguageMarkup x)      = toJSON x
+    toJSON (LTeXMarkupOrProgrammingLanguageProgramming x) = toJSON x
+
+instance ToJSONKey LTeXMarkupOrProgrammingLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXMarkupOrProgrammingLanguage where
+    parseJSON value =
+            (LTeXMarkupOrProgrammingLanguageMarkup <$> parseJSON value)
+        <|> (LTeXMarkupOrProgrammingLanguageProgramming <$> parseJSON value)
+
+instance FromJSONKey LTeXMarkupOrProgrammingLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXNaturalOrAutoDetectLanguage = LTeXNaturalOrAutoDetectLanguageNatural LTeXNaturalLanguage
+                                     | LTeXNaturalOrAutoDetectLanguageAuto    LTeXAutoDetectLanguage
+                                     deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXNaturalOrAutoDetectLanguage where
+    toJSON (LTeXNaturalOrAutoDetectLanguageNatural x) = toJSON x
+    toJSON (LTeXNaturalOrAutoDetectLanguageAuto x)    = toJSON x
+
+instance ToJSONKey LTeXNaturalOrAutoDetectLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXNaturalOrAutoDetectLanguage where
+    parseJSON value =
+            (LTeXNaturalOrAutoDetectLanguageAuto <$> parseJSON value)
+        <|> (LTeXNaturalOrAutoDetectLanguageNatural <$> parseJSON value)
+
+instance FromJSONKey LTeXNaturalOrAutoDetectLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXNaturalOrNoneLanguage = LTeXNaturalOrNoneLanguageNatural LTeXNaturalLanguage
+                               | LTeXNaturalOrNoneLanguageNone    LTeXNoneLanguage
+                               deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXNaturalOrNoneLanguage where
+    toJSON (LTeXNaturalOrNoneLanguageNatural x) = toJSON x
+    toJSON (LTeXNaturalOrNoneLanguageNone x)    = toJSON x
+
+instance ToJSONKey LTeXNaturalOrNoneLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXNaturalOrNoneLanguage where
+    parseJSON value =
+            (LTeXNaturalOrNoneLanguageNone <$> parseJSON value)
+        <|> (LTeXNaturalOrNoneLanguageNatural <$> parseJSON value)
+
+instance FromJSONKey LTeXNaturalOrNoneLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
 data LTeXEnabled = LTeXEnabledBool Bool
-                 | LTeXEnabledArray [Text]
+                 | LTeXEnabledArray [LTeXMarkupOrProgrammingLanguage]
                  deriving (Show, Eq)
 
 instance ToJSON LTeXEnabled where
@@ -478,7 +536,7 @@ instance FromJSON LTeXConfigurationTargetValue where
 
 data AdditionalRules = AdditionalRules
     { enablePickyRules :: Bool
-    , motherTongue     :: LTeXNaturalLanguage
+    , motherTongue     :: LTeXNaturalOrNoneLanguage
     , languageModel    :: Text
     }
     deriving (Show, Eq)
@@ -663,7 +721,7 @@ instance FromJSON Trace where
 
 data LTeXConfig = LTeXConfig
     { enabled                         :: LTeXEnabled
-    , language                        :: LTeXNaturalLanguage
+    , language                        :: LTeXNaturalOrAutoDetectLanguage
     , dictionary                      :: Map LTeXNaturalLanguage [Text]
     , disabledRules                   :: Map LTeXNaturalLanguage [Text]
     , enabledRules                    :: Map LTeXNaturalLanguage [Text]
