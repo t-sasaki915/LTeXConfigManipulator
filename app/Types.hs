@@ -253,6 +253,55 @@ instance FromJSON MarkdownConfig where
     parseJSON = withObject "MarkdownConfig" $ \obj -> MarkdownConfig
         <$> obj .: "nodes"
 
+data LTeXConfigurationTargetKey = LTeXConfigurationTargetKeyDictionary
+                                | LTeXConfigurationTargetKeyDisabledRules
+                                | LTeXConfigurationTargetKeyHiddenFalsePositives
+                                deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXConfigurationTargetKey where
+    toJSON LTeXConfigurationTargetKeyDictionary           = String "dictionary"
+    toJSON LTeXConfigurationTargetKeyDisabledRules        = String "disabledRules"
+    toJSON LTeXConfigurationTargetKeyHiddenFalsePositives = String "hiddenFalsePositives"
+
+instance ToJSONKey LTeXConfigurationTargetKey where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXConfigurationTargetKey where
+    parseJSON (String "dictionary")           = pure LTeXConfigurationTargetKeyDictionary
+    parseJSON (String "disabledRules")        = pure LTeXConfigurationTargetKeyDisabledRules
+    parseJSON (String "hiddenFalsePositives") = pure LTeXConfigurationTargetKeyHiddenFalsePositives
+
+    parseJSON invalid = prependFailure "parsing LTeXConfigurationTargetKey failed, " (unexpected invalid)
+
+instance FromJSONKey LTeXConfigurationTargetKey where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXConfigurationTargetValue = LTeXConfigurationTargetValueUser
+                                  | LTeXConfigurationTargetValueWorkspace
+                                  | LTeXConfigurationTargetValueWorkspaceFolder
+                                  | LTeXConfigurationTargetValueUserExternalFile
+                                  | LTeXConfigurationTargetValueWorkspaceExternalFile
+                                  | LTeXConfigurationTargetValueWorkspaceFolderExternalFile
+                                  deriving (Show, Eq)
+
+instance ToJSON LTeXConfigurationTargetValue where
+    toJSON LTeXConfigurationTargetValueUser                        = String "user"
+    toJSON LTeXConfigurationTargetValueWorkspace                   = String "workspace"
+    toJSON LTeXConfigurationTargetValueWorkspaceFolder             = String "workspaceFolder"
+    toJSON LTeXConfigurationTargetValueUserExternalFile            = String "userExternalFile"
+    toJSON LTeXConfigurationTargetValueWorkspaceExternalFile       = String "workspaceExternalFile"
+    toJSON LTeXConfigurationTargetValueWorkspaceFolderExternalFile = String "workspaceFolderExternalFile"
+
+instance FromJSON LTeXConfigurationTargetValue where
+    parseJSON (String "user")                        = pure LTeXConfigurationTargetValueUser
+    parseJSON (String "workspace")                   = pure LTeXConfigurationTargetValueWorkspace
+    parseJSON (String "workspaceFolder")             = pure LTeXConfigurationTargetValueWorkspaceFolder
+    parseJSON (String "userExternalFile")            = pure LTeXConfigurationTargetValueUserExternalFile
+    parseJSON (String "workspaceExternalFile")       = pure LTeXConfigurationTargetValueWorkspaceExternalFile
+    parseJSON (String "workspaceFolderExternalFile") = pure LTeXConfigurationTargetValueWorkspaceFolderExternalFile
+
+    parseJSON invalid = prependFailure "parsing LTeXConfigurationTargetValue failed, " (unexpected invalid)
+
 data LTeXConfig = LTeXConfig
     { enabled              :: LTeXEnabled
     , language             :: LTeXLanguage
@@ -263,6 +312,7 @@ data LTeXConfig = LTeXConfig
     , bibtex               :: BibTeXConfig
     , latex                :: LaTeXConfig
     , markdown             :: MarkdownConfig
+    , configurationTarget  :: Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue
     }
     deriving (Show, Eq)
 
@@ -278,6 +328,7 @@ instance ToJSON LTeXConfig where
             , "bibtex"               .= bibtex conf
             , "latex"                .= latex conf
             , "markdown"             .= markdown conf
+            , "configurationTarget"  .= configurationTarget conf
             ]
         ]
 
@@ -296,4 +347,5 @@ instance FromJSON LTeXConfig where
                 <*> ltexObj  .: "bibtex"
                 <*> ltexObj  .: "latex"
                 <*> ltexObj  .: "markdown"
+                <*> ltexObj  .: "configurationTarget"
 
