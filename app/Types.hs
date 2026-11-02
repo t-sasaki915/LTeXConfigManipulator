@@ -8,7 +8,7 @@
 module Types where
 
 import Control.Applicative ((<|>))
-import Control.Lens (at, makeLenses, Lens')
+import Control.Lens (at, makeLenses, view, Lens')
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (toStrict)
@@ -1027,6 +1027,9 @@ configPathLens = \case
     StatusBarItem                   -> statusBarItem
     TraceAll                        -> trace
     TraceServer                     -> trace . server
+
+getValueFromConfig :: ConfigPath a -> LTeXConfig -> a
+getValueFromConfig = view . configPathLens
 
 configPathFromText :: Text -> Maybe SomeConfigPath
 configPathFromText input =
