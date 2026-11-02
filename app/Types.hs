@@ -1,4 +1,8 @@
 {-# OPTIONS_GHC -Wno-missing-export-lists #-}
+
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module Types where
 
 import Control.Applicative ((<|>))
@@ -8,6 +12,7 @@ import Data.ByteString.Lazy (toStrict)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Vector (fromList, toList)
 
@@ -378,27 +383,27 @@ instance FromJSON LTeXEnabled where
         prependFailure "parsing LTeXEnabled failed, "
             (typeMismatch "Bool or Array" invalid)
 
-data HiddenFalsePositives = HiddenFalsePositives
+data HiddenFalsePositivesValue = HiddenFalsePositivesValue
     { rule     :: Text
     , sentence :: Text
     }
     deriving (Show, Eq)
 
-instance ToJSON HiddenFalsePositives where
+instance ToJSON HiddenFalsePositivesValue where
     toJSON x = object
         [ "rule"     .= rule x
         , "sentence" .= sentence x
         ]
 
-instance FromJSON HiddenFalsePositives where
-    parseJSON = withObject "HiddenFalsePositives" $ \obj -> HiddenFalsePositives
+instance FromJSON HiddenFalsePositivesValue where
+    parseJSON = withObject "HiddenFalsePositivesValue" $ \obj -> HiddenFalsePositivesValue
         <$> obj .: "rule"
         <*> obj .: "sentence"
 
-hiddenFalsePositivesToText :: HiddenFalsePositives -> Text
+hiddenFalsePositivesToText :: HiddenFalsePositivesValue -> Text
 hiddenFalsePositivesToText = decodeUtf8 . toStrict . encode
 
-hiddenFalsePositivesFromText :: Text -> Parser HiddenFalsePositives
+hiddenFalsePositivesFromText :: Text -> Parser HiddenFalsePositivesValue
 hiddenFalsePositivesFromText text =
     case eitherDecodeStrict' (encodeUtf8 text) of
         Right value -> pure value
@@ -629,8 +634,8 @@ instance FromJSON LTeXLsLogLevel where
     parseJSON invalid = prependFailure "parsing LTeXLsLogLevel failed, " (unexpected invalid)
 
 data LTeXLs = LTeXLs
-    { ltexLsPath     :: Text
-    , logLevel :: LTeXLsLogLevel
+    { ltexLsPath  :: Text
+    , logLevel    :: LTeXLsLogLevel
     }
     deriving (Show, Eq)
 
@@ -773,7 +778,7 @@ data LTeXConfig = LTeXConfig
     , dictionary                      :: Map LTeXNaturalLanguage [Text]
     , disabledRules                   :: Map LTeXNaturalLanguage [Text]
     , enabledRules                    :: Map LTeXNaturalLanguage [Text]
-    , hiddenFalsePositives            :: Map LTeXNaturalLanguage [HiddenFalsePositives]
+    , hiddenFalsePositives            :: Map LTeXNaturalLanguage [HiddenFalsePositivesValue]
     , bibtex                          :: BibTeXConfig
     , latex                           :: LaTeXConfig
     , markdown                        :: MarkdownConfig
@@ -893,4 +898,140 @@ defaultLTeXConfig = LTeXConfig
     , statusBarItem                   = False
     , trace                           = defaultTrace
     }
+
+data ConfigPath a where
+    Enabled                         :: ConfigPath LTeXEnabled
+    Language                        :: ConfigPath LTeXNaturalOrAutoDetectLanguage
+    Dictionary                      :: LTeXNaturalLanguage -> ConfigPath [Text]
+    DisabledRules                   :: LTeXNaturalLanguage -> ConfigPath [Text]
+    EnabledRules                    :: LTeXNaturalLanguage -> ConfigPath [Text]
+    HiddenFalsePositives            :: LTeXNaturalLanguage -> ConfigPath [HiddenFalsePositivesValue]
+    BibTeXFields                    :: Text -> ConfigPath Bool
+    LaTeXCommands                   :: Text -> ConfigPath LTeXAction
+    LaTeXEnvironments               :: Text -> ConfigPath LaTeXEnvironmentAction
+    MarkdownNodes                   :: Text -> ConfigPath LTeXAction
+    ConfigurationTarget             :: LTeXConfigurationTargetKey -> ConfigPath LTeXConfigurationTargetValue
+    AdditionalRulesEnablePickyRules :: ConfigPath Bool
+    AdditionalRulesMotherTongue     :: ConfigPath LTeXNaturalOrNoneLanguage
+    AdditionalRulesLanguageModel    :: ConfigPath Text
+    LanguageToolHttpServerUri       :: ConfigPath Text
+    LanguageToolOrgUsername         :: ConfigPath Text
+    LanguageToolOrgApiKey           :: ConfigPath Text
+    LTeXLsPath                      :: ConfigPath Text
+    LTeXLsLogLevel                  :: ConfigPath LTeXLsLogLevel
+    JavaPath                        :: ConfigPath Text
+    JavaInitialHeapSize             :: ConfigPath Int
+    JavaMaximumHeapSize             :: ConfigPath Int
+    SentenceCacheSize               :: ConfigPath Int
+    MaxRequestSize                  :: ConfigPath Int
+    ParagraphCacheTtlMinutes        :: ConfigPath Int
+    ParagraphCacheEnabled           :: ConfigPath Bool
+    CompletionEnabled               :: ConfigPath Bool
+    DiagnosticSeverity              :: ConfigPath LTeXDiagnosticSeverity
+    CheckFrequency                  :: ConfigPath LTeXCheckFrequency
+    ClearDiagnosticsWhenClosingFile :: ConfigPath Bool
+    StatusBarItem                   :: ConfigPath Bool
+    TraceServer                     :: ConfigPath TraceServerMode
+
+data SomeConfigPath where
+    SomeConfigPath :: ConfigPath a -> SomeConfigPath
+
+configPathFromText :: Text -> Maybe SomeConfigPath
+configPathFromText input =
+    case Text.splitOn "." input of
+        ["enabled"]                             -> Just (SomeConfigPath Enabled)
+        ["language"]                            -> Just (SomeConfigPath Language)
+        ("dictionary" : rest)                   -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . Dictionary
+        ("disabledRules" : rest)                -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . DisabledRules
+        ("enabledRules" : rest)                 -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . EnabledRules
+        ("hiddenFalsePositives" : rest)         -> decodeRestAsNatLang rest >>= pure . SomeConfigPath . HiddenFalsePositives
+        ("bibtex" : "fields" : rest)            -> Just (SomeConfigPath (BibTeXFields      (unsplitRest rest)))
+        ("latex" : "commands" : rest)           -> Just (SomeConfigPath (LaTeXCommands     (unsplitRest rest)))
+        ("latex" : "environments" : rest)       -> Just (SomeConfigPath (LaTeXEnvironments (unsplitRest rest)))
+        ("markdown" : "nodes" : rest)           -> Just (SomeConfigPath (MarkdownNodes     (unsplitRest rest)))
+        ("configurationTarget" : rest)          -> decodeRestAsTargetKey rest >>= pure . SomeConfigPath . ConfigurationTarget
+        ["additionalRules", "enablePickyRules"] -> Just (SomeConfigPath AdditionalRulesEnablePickyRules)
+        ["additionalRules", "motherTongue"]     -> Just (SomeConfigPath AdditionalRulesMotherTongue)
+        ["additionalRules", "languageModel"]    -> Just (SomeConfigPath AdditionalRulesLanguageModel)
+        ["languageToolHttpServerUri"]           -> Just (SomeConfigPath LanguageToolHttpServerUri)
+        ["languageToolOrg", "username"]         -> Just (SomeConfigPath LanguageToolOrgUsername)
+        ["languageToolOrg", "apiKey"]           -> Just (SomeConfigPath LanguageToolOrgApiKey)
+        ["ltex-ls", "path"]                     -> Just (SomeConfigPath LTeXLsPath)
+        ["ltex-ls", "logLevel"]                 -> Just (SomeConfigPath LTeXLsLogLevel)
+        ["java", "path"]                        -> Just (SomeConfigPath JavaPath)
+        ["java", "initialHeapSize"]             -> Just (SomeConfigPath JavaInitialHeapSize)
+        ["java", "maximumHeapSize"]             -> Just (SomeConfigPath JavaMaximumHeapSize)
+        ["sentenceCacheSize"]                   -> Just (SomeConfigPath SentenceCacheSize)
+        ["maxRequestSize"]                      -> Just (SomeConfigPath MaxRequestSize)
+        ["paragraphCacheTtlMinutes"]            -> Just (SomeConfigPath ParagraphCacheTtlMinutes)
+        ["paragraphCacheEnabled"]               -> Just (SomeConfigPath ParagraphCacheEnabled)
+        ["completionEnabled"]                   -> Just (SomeConfigPath CompletionEnabled)
+        ["diagnosticSeverity"]                  -> Just (SomeConfigPath DiagnosticSeverity)
+        ["checkFrequency"]                      -> Just (SomeConfigPath CheckFrequency)
+        ["clearDiagnosticsWhenClosingFile"]     -> Just (SomeConfigPath ClearDiagnosticsWhenClosingFile)
+        ["statusBarItem"]                       -> Just (SomeConfigPath StatusBarItem)
+        ["trace", "server"]                     -> Just (SomeConfigPath TraceServer)
+        _                                       -> Nothing
+    where
+        unsplitRest = Text.intercalate "."
+
+        decodeRestAsNatLang   = decodeStrict . encodeUtf8 . unsplitRest
+        decodeRestAsTargetKey = decodeStrict . encodeUtf8 . unsplitRest
+
+data Operation = Get | Set | Add | Remove deriving (Show, Eq, Ord)
+
+operationFromText :: Text -> Maybe Operation
+operationFromText "get"    = Just Get
+operationFromText "set"    = Just Set
+operationFromText "add"    = Just Add
+operationFromText "remove" = Just Remove
+operationFromText _        = Nothing
+
+class AllowedOperations a where
+    allowedOperations :: ConfigPath a -> [Operation]
+
+instance AllowedOperations LTeXEnabled where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXNaturalOrAutoDetectLanguage where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations [Text] where
+    allowedOperations _ = [Get, Set, Add, Remove]
+
+instance AllowedOperations [HiddenFalsePositivesValue] where
+    allowedOperations _ = [Get, Set, Add, Remove]
+
+instance AllowedOperations Bool where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXAction where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LaTeXEnvironmentAction where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXConfigurationTargetValue where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXNaturalOrNoneLanguage where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations Text where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXLsLogLevel where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations Int where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXDiagnosticSeverity where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations LTeXCheckFrequency where
+    allowedOperations _ = [Get, Set]
+
+instance AllowedOperations TraceServerMode where
+    allowedOperations _ = [Get, Set]
 
