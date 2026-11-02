@@ -302,33 +302,122 @@ instance FromJSON LTeXConfigurationTargetValue where
 
     parseJSON invalid = prependFailure "parsing LTeXConfigurationTargetValue failed, " (unexpected invalid)
 
+data AdditionalRules = AdditionalRules
+    { enablePickyRules :: Bool
+    , motherTongue     :: LTeXLanguage
+    , languageModel    :: Text
+    }
+    deriving (Show, Eq)
+
+instance ToJSON AdditionalRules where
+    toJSON conf = object
+        [ "enablePickyRules" .= enablePickyRules conf
+        ]
+
+instance FromJSON AdditionalRules where
+    parseJSON = withObject "AdditionalRules" $ \obj -> AdditionalRules
+        <$> obj .: "enablePickyRules"
+        <*> obj .: "motherTongue"
+        <*> obj .: "languageModel"
+
+data LanguageToolOrg = LanguageToolOrg
+    { username :: Text
+    , apiKey   :: Text
+    }
+    deriving (Show, Eq)
+
+instance ToJSON LanguageToolOrg where
+    toJSON conf = object
+        [ "username" .= username conf
+        , "apiKey"   .= apiKey conf
+        ]
+
+instance FromJSON LanguageToolOrg where
+    parseJSON = withObject "LanguageToolOrg" $ \obj -> LanguageToolOrg
+        <$> obj .: "username"
+        <*> obj .: "apiKey"
+
+data LTeXLsLogLevel = LTeXLsLogLevelSevere
+                    | LTeXLsLogLevelWarning
+                    | LTeXLsLogLevelInfo
+                    | LTeXLsLogLevelConfig
+                    | LTeXLsLogLevelFine
+                    | LTeXLsLogLevelFiner
+                    | LTeXLsLogLevelFinest
+                    deriving (Show, Eq)
+
+instance ToJSON LTeXLsLogLevel where
+    toJSON LTeXLsLogLevelSevere  = String "severe"
+    toJSON LTeXLsLogLevelWarning = String "warning"
+    toJSON LTeXLsLogLevelInfo    = String "info"
+    toJSON LTeXLsLogLevelConfig  = String "config"
+    toJSON LTeXLsLogLevelFine    = String "fine"
+    toJSON LTeXLsLogLevelFiner   = String "finer"
+    toJSON LTeXLsLogLevelFinest  = String "finest"
+
+instance FromJSON LTeXLsLogLevel where
+    parseJSON (String "severe")  = pure LTeXLsLogLevelSevere
+    parseJSON (String "warning") = pure LTeXLsLogLevelWarning
+    parseJSON (String "info")    = pure LTeXLsLogLevelInfo
+    parseJSON (String "config")  = pure LTeXLsLogLevelConfig
+    parseJSON (String "fine")    = pure LTeXLsLogLevelFine
+    parseJSON (String "finer")   = pure LTeXLsLogLevelFiner
+    parseJSON (String "finest")  = pure LTeXLsLogLevelFinest
+
+    parseJSON invalid = prependFailure "parsing LTeXLsLogLevel failed, " (unexpected invalid)
+
+data LTeXLs = LTeXLs
+    { path     :: Text
+    , logLevel :: LTeXLsLogLevel
+    }
+    deriving (Show, Eq)
+
+instance ToJSON LTeXLs where
+    toJSON conf = object
+        [ "path"     .= path conf
+        , "logLevel" .= logLevel conf
+        ]
+
+instance FromJSON LTeXLs where
+    parseJSON = withObject "LTeXLs" $ \obj -> LTeXLs
+        <$> obj .: "path"
+        <*> obj .: "logLevel"
+
 data LTeXConfig = LTeXConfig
-    { enabled              :: LTeXEnabled
-    , language             :: LTeXLanguage
-    , dictionary           :: Map LTeXLanguage [Text]
-    , disabledRules        :: Map LTeXLanguage [Text]
-    , enabledRules         :: Map LTeXLanguage [Text]
-    , hiddenFalsePositives :: Map LTeXLanguage [HiddenFalsePositives]
-    , bibtex               :: BibTeXConfig
-    , latex                :: LaTeXConfig
-    , markdown             :: MarkdownConfig
-    , configurationTarget  :: Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue
+    { enabled                   :: LTeXEnabled
+    , language                  :: LTeXLanguage
+    , dictionary                :: Map LTeXLanguage [Text]
+    , disabledRules             :: Map LTeXLanguage [Text]
+    , enabledRules              :: Map LTeXLanguage [Text]
+    , hiddenFalsePositives      :: Map LTeXLanguage [HiddenFalsePositives]
+    , bibtex                    :: BibTeXConfig
+    , latex                     :: LaTeXConfig
+    , markdown                  :: MarkdownConfig
+    , configurationTarget       :: Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue
+    , additionalRules           :: AdditionalRules
+    , languageToolHttpServerUri :: Text
+    , languageToolOrg           :: LanguageToolOrg
+    , ltexLs                    :: LTeXLs
     }
     deriving (Show, Eq)
 
 instance ToJSON LTeXConfig where
     toJSON conf = object
         [ "ltex" .= object
-            [ "enabled"              .= enabled conf
-            , "language"             .= language conf
-            , "dictionary"           .= dictionary conf
-            , "disabledRules"        .= disabledRules conf
-            , "enabledRules"         .= enabledRules conf
-            , "hiddenFalsePositives" .= fmap (map hiddenFalsePositivesToText) (hiddenFalsePositives conf)
-            , "bibtex"               .= bibtex conf
-            , "latex"                .= latex conf
-            , "markdown"             .= markdown conf
-            , "configurationTarget"  .= configurationTarget conf
+            [ "enabled"                   .= enabled conf
+            , "language"                  .= language conf
+            , "dictionary"                .= dictionary conf
+            , "disabledRules"             .= disabledRules conf
+            , "enabledRules"              .= enabledRules conf
+            , "hiddenFalsePositives"      .= fmap (map hiddenFalsePositivesToText) (hiddenFalsePositives conf)
+            , "bibtex"                    .= bibtex conf
+            , "latex"                     .= latex conf
+            , "markdown"                  .= markdown conf
+            , "configurationTarget"       .= configurationTarget conf
+            , "additionalRules"           .= additionalRules conf
+            , "languageToolHttpServerUri" .= languageToolHttpServerUri conf
+            , "languageToolOrg"           .= languageToolOrg conf
+            , "ltex-ls"                   .= ltexLs conf
             ]
         ]
 
@@ -348,4 +437,8 @@ instance FromJSON LTeXConfig where
                 <*> ltexObj  .: "latex"
                 <*> ltexObj  .: "markdown"
                 <*> ltexObj  .: "configurationTarget"
+                <*> ltexObj  .: "additionalRules"
+                <*> ltexObj  .: "languageToolHttpServerUri"
+                <*> ltexObj  .: "languageToolOrg"
+                <*> ltexObj  .: "ltex-ls"
 
