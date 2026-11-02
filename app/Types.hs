@@ -1,6 +1,5 @@
-module Types
-    ( LTeXLanguage (..)
-    ) where
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
+module Types where
 
 import Data.Aeson
 import Data.Aeson.Types
@@ -10,17 +9,18 @@ import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Vector (fromList, toList)
 
-data LTeXLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanValencian | Chinese
-                  | Danish | Dutch | DutchBelgium | English | EnglishAustralian | EnglishCanadian
-                  | EnglishGB | EnglishNewZealand | EnglishSouthAfrican | EnglishUS | Esperanto
-                  | French | Galician | German | GermanAustria | GermanGermany | GermanSwiss
-                  | Greek | Irish | Italian | Japanese | Khmer | Persian | Polish | Portuguese
-                  | PortugueseAngolaPreAO | PortugueseBrazil | PortugueseMozambiquePreAO
-                  | PortuguesePortugal | Romanian | Russian | SimpleGerman | Slovak | Slovenian
-                  | Spanish | SpanishVoseo | Swedish | Tagalog | Tamil | Ukrainian | AutoDetect
-                  deriving (Show, Eq, Ord)
+data LTeXNaturalLanguage = Arabic | Asturian | Belarusian | Breton | Catalan | CatalanValencian
+                         | Chinese | Danish | Dutch | DutchBelgium | English | EnglishAustralian
+                         | EnglishCanadian | EnglishGB | EnglishNewZealand | EnglishSouthAfrican
+                         | EnglishUS | Esperanto | French | Galician | German | GermanAustria
+                         | GermanGermany | GermanSwiss | Greek | Irish | Italian | Japanese
+                         | Khmer | Persian | Polish | Portuguese | PortugueseAngolaPreAO
+                         | PortugueseBrazil | PortugueseMozambiquePreAO | PortuguesePortugal
+                         | Romanian | Russian | SimpleGerman | Slovak | Slovenian | Spanish 
+                         | SpanishVoseo | Swedish | Tagalog | Tamil | Ukrainian
+                         deriving (Show, Eq, Ord)
 
-instance ToJSON LTeXLanguage where
+instance ToJSON LTeXNaturalLanguage where
     toJSON Arabic                    = String "ar"
     toJSON Asturian                  = String "ast-ES"
     toJSON Belarusian                = String "be-BY"
@@ -68,12 +68,11 @@ instance ToJSON LTeXLanguage where
     toJSON Tagalog                   = String "tl-PH"
     toJSON Tamil                     = String "ta-IN"
     toJSON Ukrainian                 = String "uk-UA"
-    toJSON AutoDetect                = String "auto"
 
-instance ToJSONKey LTeXLanguage where
+instance ToJSONKey LTeXNaturalLanguage where
     toJSONKey = ToJSONKeyValue toJSON toEncoding
 
-instance FromJSON LTeXLanguage where
+instance FromJSON LTeXNaturalLanguage where
     parseJSON (String "ar")                         = pure Arabic
     parseJSON (String "ast-ES")                     = pure Asturian
     parseJSON (String "be-BY")                      = pure Belarusian
@@ -122,12 +121,122 @@ instance FromJSON LTeXLanguage where
     parseJSON (String "tl-PH")                      = pure Tagalog
     parseJSON (String "ta-IN")                      = pure Tamil
     parseJSON (String "uk-UA")                      = pure Ukrainian
-    parseJSON (String "auto")                       = pure AutoDetect
 
-    parseJSON invalid = prependFailure "parsing LTeXLanguage failed, " (unexpected invalid)
+    parseJSON invalid = prependFailure "parsing LTeXNaturalLanguage failed, " (unexpected invalid)
 
-instance FromJSONKey LTeXLanguage where
+instance FromJSONKey LTeXNaturalLanguage where
     fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXAutoDetectLanguage = LTeXAutoDetectLanguage
+                            deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXAutoDetectLanguage where
+    toJSON LTeXAutoDetectLanguage = String "auto"
+
+instance ToJSONKey LTeXAutoDetectLanguage where
+    toJSONKey = ToJSONKeyValue toJSON toEncoding
+
+instance FromJSON LTeXAutoDetectLanguage where
+    parseJSON (String "auto") = pure LTeXAutoDetectLanguage
+
+    parseJSON invalid = prependFailure "parsing LTeXAutoDetectLanguage failed, " (unexpected invalid)
+
+instance FromJSONKey LTeXAutoDetectLanguage where
+    fromJSONKey = FromJSONKeyValue parseJSON
+
+data LTeXProgrammingLanguage = ShellScript | C | CSharp | CPP | Clojure | CoffeeScript | Dart
+                             | Elixir | Elm | EmacsLisp | Erlang | FSharp | FORTRAN | Go | Groovy
+                             | Haskell | Java | JavaScript | JavaScriptReact | Julia | Kotlin
+                             | Lisp | Lua | MATLAB | Perl | Perl6 | PHP | PowerShell | Puppet
+                             | Python | R | Ruby | Rust | Scala | SQL | Swift | TypeScript
+                             | TypeScriptReact | Verilog | VisualBasic
+                             deriving (Show, Eq, Ord)
+
+instance ToJSON LTeXProgrammingLanguage where
+    toJSON ShellScript     = String "shellscript"
+    toJSON C               = String "c"
+    toJSON CSharp          = String "csharp"
+    toJSON CPP             = String "cpp"
+    toJSON Clojure         = String "clojure"
+    toJSON CoffeeScript    = String "coffeescript"
+    toJSON Dart            = String "dart"
+    toJSON Elixir          = String "elixir"
+    toJSON Elm             = String "elm"
+    toJSON EmacsLisp       = String "elisp"
+    toJSON Erlang          = String "erlang"
+    toJSON FSharp          = String "fsharp"
+    toJSON FORTRAN         = String "fortran-modern"
+    toJSON Go              = String "go"
+    toJSON Groovy          = String "groovy"
+    toJSON Haskell         = String "haskell"
+    toJSON Java            = String "java"
+    toJSON JavaScript      = String "javascript"
+    toJSON JavaScriptReact = String "javascriptreact"
+    toJSON Julia           = String "julia"
+    toJSON Kotlin          = String "kotlin"
+    toJSON Lisp            = String "lisp"
+    toJSON Lua             = String "lua"
+    toJSON MATLAB          = String "matlab"
+    toJSON Perl            = String "perl"
+    toJSON Perl6           = String "perl6"
+    toJSON PHP             = String "php"
+    toJSON PowerShell      = String "powershell"
+    toJSON Puppet          = String "puppet"
+    toJSON Python          = String "python"
+    toJSON R               = String "r"
+    toJSON Ruby            = String "ruby"
+    toJSON Rust            = String "rust"
+    toJSON Scala           = String "scala"
+    toJSON SQL             = String "sql"
+    toJSON Swift           = String "swift"
+    toJSON TypeScript      = String "typescript"
+    toJSON TypeScriptReact = String "typescriptreact"
+    toJSON Verilog         = String "verilog"
+    toJSON VisualBasic     = String "vb"
+
+instance FromJSON LTeXProgrammingLanguage where
+    parseJSON (String "shellscript")     = pure ShellScript
+    parseJSON (String "c")               = pure C
+    parseJSON (String "csharp")          = pure CSharp
+    parseJSON (String "cpp")             = pure CPP
+    parseJSON (String "clojure")         = pure Clojure
+    parseJSON (String "coffeescript")    = pure CoffeeScript
+    parseJSON (String "dart")            = pure Dart
+    parseJSON (String "elixir")          = pure Elixir
+    parseJSON (String "elm")             = pure Elm
+    parseJSON (String "elisp")           = pure EmacsLisp
+    parseJSON (String "erlang")          = pure Erlang
+    parseJSON (String "fsharp")          = pure FSharp
+    parseJSON (String "fortran-modern")  = pure FORTRAN
+    parseJSON (String "go")              = pure Go
+    parseJSON (String "groovy")          = pure Groovy
+    parseJSON (String "haskell")         = pure Haskell
+    parseJSON (String "java")            = pure Java
+    parseJSON (String "javascript")      = pure JavaScript
+    parseJSON (String "javascriptreact") = pure JavaScriptReact
+    parseJSON (String "julia")           = pure Julia
+    parseJSON (String "kotlin")          = pure Kotlin
+    parseJSON (String "lisp")            = pure Lisp
+    parseJSON (String "lua")             = pure Lua
+    parseJSON (String "matlab")          = pure MATLAB
+    parseJSON (String "perl")            = pure Perl
+    parseJSON (String "perl6")           = pure Perl6
+    parseJSON (String "php")             = pure PHP
+    parseJSON (String "powershell")      = pure PowerShell
+    parseJSON (String "puppet")          = pure Puppet
+    parseJSON (String "python")          = pure Python
+    parseJSON (String "r")               = pure R
+    parseJSON (String "ruby")            = pure Ruby
+    parseJSON (String "rust")            = pure Rust
+    parseJSON (String "scala")           = pure Scala
+    parseJSON (String "sql")             = pure SQL
+    parseJSON (String "swift")           = pure Swift
+    parseJSON (String "typescript")      = pure TypeScript
+    parseJSON (String "typescriptreact") = pure TypeScriptReact
+    parseJSON (String "verilog")         = pure Verilog
+    parseJSON (String "vb")              = pure VisualBasic
+
+    parseJSON invalid = prependFailure "parsing LTeXProgrammingLanguage failed, " (unexpected invalid)
 
 data LTeXEnabled = LTeXEnabledBool Bool
                  | LTeXEnabledArray [Text]
@@ -304,7 +413,7 @@ instance FromJSON LTeXConfigurationTargetValue where
 
 data AdditionalRules = AdditionalRules
     { enablePickyRules :: Bool
-    , motherTongue     :: LTeXLanguage
+    , motherTongue     :: LTeXNaturalLanguage
     , languageModel    :: Text
     }
     deriving (Show, Eq)
@@ -383,22 +492,22 @@ instance FromJSON LTeXLs where
         <$> obj .: "path"
         <*> obj .: "logLevel"
 
-data Java = Java
+data JavaConfig = JavaConfig
     { javaPath        :: Text
     , initialHeapSize :: Int
     , maximumHeapSize :: Int
     }
     deriving (Show, Eq)
 
-instance ToJSON Java where
+instance ToJSON JavaConfig where
     toJSON conf = object
         [ "path"            .= javaPath conf
         , "initialHeapSize" .= initialHeapSize conf
         , "maximumHeapSize" .= maximumHeapSize conf
         ]
 
-instance FromJSON Java where
-    parseJSON = withObject "Java" $ \obj -> Java
+instance FromJSON JavaConfig where
+    parseJSON = withObject "Java" $ \obj -> JavaConfig
         <$> obj .: "path"
         <*> obj .: "initialHeapSize"
         <*> obj .: "maximumHeapSize"
@@ -489,11 +598,11 @@ instance FromJSON Trace where
 
 data LTeXConfig = LTeXConfig
     { enabled                         :: LTeXEnabled
-    , language                        :: LTeXLanguage
-    , dictionary                      :: Map LTeXLanguage [Text]
-    , disabledRules                   :: Map LTeXLanguage [Text]
-    , enabledRules                    :: Map LTeXLanguage [Text]
-    , hiddenFalsePositives            :: Map LTeXLanguage [HiddenFalsePositives]
+    , language                        :: LTeXNaturalLanguage
+    , dictionary                      :: Map LTeXNaturalLanguage [Text]
+    , disabledRules                   :: Map LTeXNaturalLanguage [Text]
+    , enabledRules                    :: Map LTeXNaturalLanguage [Text]
+    , hiddenFalsePositives            :: Map LTeXNaturalLanguage [HiddenFalsePositives]
     , bibtex                          :: BibTeXConfig
     , latex                           :: LaTeXConfig
     , markdown                        :: MarkdownConfig
@@ -502,7 +611,7 @@ data LTeXConfig = LTeXConfig
     , languageToolHttpServerUri       :: Text
     , languageToolOrg                 :: LanguageToolOrg
     , ltexLs                          :: LTeXLs
-    , java                            :: Java
+    , java                            :: JavaConfig
     , sentenceCacheSize               :: Int
     , maxRequestSize                  :: Int
     , paragraphCacheTtlMinutes        :: Int
