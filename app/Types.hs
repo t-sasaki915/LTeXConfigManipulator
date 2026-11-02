@@ -12,6 +12,7 @@ import Control.Lens (at, makeLenses, view, set, Lens')
 import Data.Aeson
 import Data.Aeson.Types
 import Data.ByteString.Lazy (toStrict)
+import Data.Maybe (fromMaybe)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
@@ -866,7 +867,7 @@ instance FromJSON LTeXConfig where
                 <*> ltexObj   .:? "dictionary"                      .!= _dictionary                      defaultLTeXConfig
                 <*> ltexObj   .:? "disabledRules"                   .!= _disabledRules                   defaultLTeXConfig
                 <*> ltexObj   .:? "enabledRules"                    .!= _enabledRules                    defaultLTeXConfig
-                <*> ((ltexObj .:? "hiddenFalsePositives"            .!= mempty) >>= traverse (traverse hiddenFalsePositivesFromText))
+                <*> ((ltexObj .:? "hiddenFalsePositives"            .!= Map.empty) >>= traverse (traverse hiddenFalsePositivesFromText))
                 <*> ltexObj   .:? "bibtex"                          .!= _bibtex                          defaultLTeXConfig
                 <*> ltexObj   .:? "latex"                           .!= _latex                           defaultLTeXConfig
                 <*> ltexObj   .:? "markdown"                        .!= _markdown                        defaultLTeXConfig
@@ -893,10 +894,10 @@ defaultLTeXConfig = LTeXConfig
         [ BibTeX, ConTeXt, XHTML, LaTeX, Markdown, MDX, Typst, AsciiDoc, Neorg, Org
         , Quarto, ReStructuredText, RSweave]
     , _language                        = LTeXNaturalOrAutoDetectLanguageNatural EnglishUS
-    , _dictionary                      = mempty
-    , _disabledRules                   = mempty
-    , _enabledRules                    = mempty
-    , _hiddenFalsePositives            = mempty
+    , _dictionary                      = Map.empty
+    , _disabledRules                   = Map.empty
+    , _enabledRules                    = Map.empty
+    , _hiddenFalsePositives            = Map.empty
     , _bibtex                          = defaultBibTeXConfig
     , _latex                           = defaultLaTeXConfig
     , _markdown                        = defaultMarkdownConfig
@@ -974,7 +975,7 @@ data ConfigPath a where
     TraceServer                     :: ConfigPath TraceServerMode
 
 data SomeConfigPath where
-    SomeConfigPath :: (AllowedOperations a, ToJSON a, FromJSON a) => ConfigPath a -> SomeConfigPath
+    SomeConfigPath :: (IsListActionDefined a, ToJSON a, FromJSON a) => ConfigPath a -> SomeConfigPath
 
 configPathLens :: ConfigPath a -> Lens' LTeXConfig a
 configPathLens = \case
@@ -1093,101 +1094,126 @@ configPathFromText input =
         decodeRestAsNatLang   = parseMaybe parseJSON . String . unsplitRest
         decodeRestAsTargetKey = parseMaybe parseJSON . String . unsplitRest
 
-data Operation = Get | Set | Add | Remove deriving (Show, Eq, Ord)
+data AppendError = AppendNotSupported | ItemAlreadyInList deriving (Show, Eq)
+data RemoveError = RemoveNotSupported | ItemNotInList     deriving (Show, Eq)
 
-class AllowedOperations a where
-    allowedOperations :: ConfigPath a -> [Operation]
+class IsListActionDefined a where
+    doAppend :: a -> a -> Either AppendError a
+    doRemove :: a -> a -> Either RemoveError a
 
-allowedOperationsFor :: SomeConfigPath -> [Operation]
-allowedOperationsFor (SomeConfigPath x) = allowedOperations x
+instance IsListActionDefined LTeXEnabled where
+    doAppend (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (a <> b))
+    doAppend _ _                                       = Left AppendNotSupported
+    doRemove (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (filter (`notElem` b) a))
+    doRemove _ _                                       = Left RemoveNotSupported
 
-instance AllowedOperations LTeXEnabled where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LTeXNaturalOrAutoDetectLanguage where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LTeXNaturalOrAutoDetectLanguage where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Maybe [Text]) where
+    doAppend a b = Right (Just (fromMaybe [] a <> fromMaybe [] b))
+    doRemove a b = Right (Just (filter (`notElem` (fromMaybe [] b)) (fromMaybe [] a)))
 
-instance AllowedOperations (Maybe [Text]) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined (Map LTeXNaturalLanguage [Text]) where
+    doAppend a b = Right (a <> b)
 
-instance AllowedOperations (Map LTeXNaturalLanguage [Text]) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined (Maybe [HiddenFalsePositivesValue]) where
+    doAppend a b = Right (Just (fromMaybe [] a <> fromMaybe [] b))
+    doRemove a b = Right (Just (filter (`notElem` (fromMaybe [] b)) (fromMaybe [] a)))
 
-instance AllowedOperations (Maybe [HiddenFalsePositivesValue]) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined (Map LTeXNaturalLanguage [HiddenFalsePositivesValue]) where
+    doAppend a b = Right (a <> b)
 
-instance AllowedOperations (Map LTeXNaturalLanguage [HiddenFalsePositivesValue]) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined BibTeXConfig where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations BibTeXConfig where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Maybe Bool) where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations (Maybe Bool) where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Map Text Bool) where
+    doAppend a b = Right (a <> b)
 
-instance AllowedOperations (Map Text Bool) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined LaTeXConfig where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LaTeXConfig where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Maybe LTeXAction) where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations (Maybe LTeXAction) where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Map Text LTeXAction) where
+    doAppend a b = Right (a <> b)
 
-instance AllowedOperations (Map Text LTeXAction) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined (Maybe LaTeXEnvironmentAction) where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations (Maybe LaTeXEnvironmentAction) where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Map Text LaTeXEnvironmentAction) where
+    doAppend a b = Right (a <> b)
 
-instance AllowedOperations (Map Text LaTeXEnvironmentAction) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined MarkdownConfig where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations MarkdownConfig where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Maybe LTeXConfigurationTargetValue) where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations (Maybe LTeXConfigurationTargetValue) where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue) where
+    doAppend a b = Right (a <> b)
 
-instance AllowedOperations (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue) where
-    allowedOperations _ = [Get, Set, Add, Remove]
+instance IsListActionDefined AdditionalRules where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations AdditionalRules where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined Bool where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations Bool where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LTeXNaturalOrNoneLanguage where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LTeXNaturalOrNoneLanguage where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined Text where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations Text where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LanguageToolOrg where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LanguageToolOrg where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LTeXLs where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LTeXLs where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LTeXLsLogLevel where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LTeXLsLogLevel where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined JavaConfig where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations JavaConfig where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined Int where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations Int where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LTeXDiagnosticSeverity where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LTeXDiagnosticSeverity where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined LTeXCheckFrequency where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations LTeXCheckFrequency where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined Trace where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 
-instance AllowedOperations Trace where
-    allowedOperations _ = [Get, Set]
-
-instance AllowedOperations TraceServerMode where
-    allowedOperations _ = [Get, Set]
+instance IsListActionDefined TraceServerMode where
+    doAppend _ _ = Left AppendNotSupported
+    doRemove _ _ = Left RemoveNotSupported
 

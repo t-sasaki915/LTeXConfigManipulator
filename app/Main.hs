@@ -1,7 +1,6 @@
 module Main (main) where
 
 import Data.Aeson
-import Data.Aeson.Types hiding (Parser)
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -157,9 +156,17 @@ main = execParser commandLineParser >>= \case
                 Left err ->
                     error err
 
-    (AddCommand texFilePath configPath configValue) ->
-        withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
-            putStrLn "ADD" >> print currentConf
+    (AddCommand texFilePath (SomeConfigPath configPath) configValue) ->
+        withLTeXConfig texFilePath $ \(currentConf, _) -> do
+            case parseConfigValue configValue of
+                Right configVal ->
+                    case doAppend (getValueFromConfig configPath currentConf) configVal of
+                        Right val'              -> BS.putStr (encode val')
+                        Left AppendNotSupported -> putStrLn "NOT SUPPORTED!!"
+                        Left ItemAlreadyInList  -> putStrLn "ALREADY IN LIST!!"
+
+                Left err ->
+                    error err
 
     (RemoveCommand texFilePath configPath configValue) ->
         withLTeXConfig texFilePath $ \(currentConf, projRoot) ->
