@@ -119,11 +119,11 @@ main = execParser commandLineParser >>= \case
                 Right currentVal ->
                     BS.putStr $ showItemInJson currentVal
 
-                Left ValueNotFound ->
+                Left GetLTeXConfigValueNotFound ->
                     putStrLn "The configuration path was inaccesible." >>
                         exitFailure
 
-                Left InvalidConfigForPath ->
+                Left GetLTeXConfigValueConfigInvalid ->
                     putStrLn "Current configuration is invalid for this path." >>
                         exitFailure
 
@@ -134,11 +134,7 @@ main = execParser commandLineParser >>= \case
                     Right newConfig ->
                         BS.putStr $ showConfigInJson newConfig
 
-                    Left ValueNotFound ->
-                        putStrLn "The configuration path was inaccesible." >>
-                            exitFailure
-
-                    Left InvalidConfigForPath ->
+                    Left SetLTeXConfigValueConfigInvalid ->
                         putStrLn "Current configuration is invalid for this path." >>
                             exitFailure
 
@@ -159,10 +155,17 @@ main = execParser commandLineParser >>= \case
                             Left ItemAlreadyInList ->
                                 putStrLn "The item is already registered."
 
-                    Left ValueNotFound ->
-                        pure ()
+                    Left GetLTeXConfigValueNotFound ->
+                        case initialiseForAppend jsonValue of
+                            Right newVal -> do
+                                Right newConfig <- pure $ setLTeXConfigValue configPath newVal currentConf
+                                BS.putStr $ showConfigInJson newConfig
 
-                    Left InvalidConfigForPath ->
+                            Left AppendInitialiseNotSupported ->
+                                putStrLn "Command add is not supported for this path." >>
+                                    exitFailure
+                            
+                    Left GetLTeXConfigValueConfigInvalid ->
                         putStrLn "Current configuration is invalid for this path." >>
                             exitFailure
 
@@ -183,11 +186,11 @@ main = execParser commandLineParser >>= \case
                             Left ItemNotInList ->
                                 putStrLn "The item was not registered."
 
-                    Left ValueNotFound ->
+                    Left GetLTeXConfigValueNotFound ->
                         putStrLn "The configuration path was inaccesible." >>
                             exitFailure
 
-                    Left InvalidConfigForPath ->
+                    Left GetLTeXConfigValueConfigInvalid ->
                         putStrLn "Current configuration is invalid for this path." >>
                             exitFailure
 

@@ -10,8 +10,11 @@ module Types
     , ConfigPath
     , AppendError (..)
     , RemoveError (..)
+    , AppendInitialiseError (..)
     , IsListActionDefined (..)
-    , ConfigPathLensError (..)
+    , ConfigPathAccess (..)
+    , GetLTeXConfigValueError (..)
+    , SetLTeXConfigValueError (..)
     , withLTeXConfig
     , configPathFromText
     , getLTeXConfigValue
@@ -95,130 +98,161 @@ data SomeConfigPath where
                    => ConfigPath a b
                    -> SomeConfigPath
 
-data AppendError = AppendNotSupported | ItemAlreadyInList deriving (Show, Eq)
-data RemoveError = RemoveNotSupported | ItemNotInList     deriving (Show, Eq)
+data AppendError           = AppendNotSupported | ItemAlreadyInList deriving (Show, Eq)
+data RemoveError           = RemoveNotSupported | ItemNotInList     deriving (Show, Eq)
+data AppendInitialiseError = AppendInitialiseNotSupported           deriving (Show, Eq)
 
 class IsListActionDefined a b where
-    doAppend :: a -> b -> Either AppendError a
-    doRemove :: a -> b -> Either RemoveError a
+    doAppend            :: a -> b -> Either AppendError a
+    doRemove            :: a -> b -> Either RemoveError a
+    initialiseForAppend :: b -> Either AppendInitialiseError a
 
 instance IsListActionDefined LTeXEnabled LTeXEnabled where
     doAppend (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (a <> b))
     doAppend _ _                                       = Left AppendNotSupported
     doRemove (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (filter (`notElem` b) a))
     doRemove _ _                                       = Left RemoveNotSupported
+    initialiseForAppend                                = Right
 
 instance IsListActionDefined LTeXNaturalOrAutoDetectLanguage () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined [Text] Text where
-    doAppend = typicalAppendList
-    doRemove = typicalRemoveList
+    doAppend            = typicalAppendList
+    doRemove            = typicalRemoveList
+    initialiseForAppend = Right . pure
 
 instance IsListActionDefined (Map LTeXNaturalLanguage [Text]) (LTeXNaturalLanguage, [Text]) where
-    doAppend = typicalAppendMap
-    doRemove = typicalRemoveMap
+    doAppend            = typicalAppendMap
+    doRemove            = typicalRemoveMap
+    initialiseForAppend = Right . makeMapFromPair
 
 instance IsListActionDefined [HiddenFalsePositivesValue] HiddenFalsePositivesValue where
-    doAppend = typicalAppendList
-    doRemove = typicalRemoveList
+    doAppend            = typicalAppendList
+    doRemove            = typicalRemoveList
+    initialiseForAppend = Right . pure
 
 instance IsListActionDefined (Map LTeXNaturalLanguage [HiddenFalsePositivesValue]) (LTeXNaturalLanguage, [HiddenFalsePositivesValue]) where
-    doAppend = typicalAppendMap
-    doRemove = typicalRemoveMap
+    doAppend            = typicalAppendMap
+    doRemove            = typicalRemoveMap
+    initialiseForAppend = Right . makeMapFromPair
 
 instance IsListActionDefined BibTeXConfig () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined Bool () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined (Map Text Bool) (Text, Bool) where
-    doAppend = typicalAppendMap
-    doRemove = typicalRemoveMap
+    doAppend            = typicalAppendMap
+    doRemove            = typicalRemoveMap
+    initialiseForAppend = Right . makeMapFromPair
 
 instance IsListActionDefined LaTeXConfig () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXAction () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined (Map Text LTeXAction) (Text, LTeXAction) where
-    doAppend = typicalAppendMap
-    doRemove = typicalRemoveMap
+    doAppend            = typicalAppendMap
+    doRemove            = typicalRemoveMap
+    initialiseForAppend = Right . makeMapFromPair
 
 instance IsListActionDefined LaTeXEnvironmentAction () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined (Map Text LaTeXEnvironmentAction) (Text, LaTeXEnvironmentAction) where
-    doAppend = typicalAppendMap
-    doRemove = typicalRemoveMap
+    doAppend            = typicalAppendMap
+    doRemove            = typicalRemoveMap
+    initialiseForAppend = Right . makeMapFromPair
 
 instance IsListActionDefined MarkdownConfig () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXConfigurationTargetValue () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined (Map LTeXConfigurationTargetKey LTeXConfigurationTargetValue) (LTeXConfigurationTargetKey, LTeXConfigurationTargetValue)where
-    doAppend = typicalAppendMap
-    doRemove = typicalRemoveMap
+    doAppend            = typicalAppendMap
+    doRemove            = typicalRemoveMap
+    initialiseForAppend = Right . makeMapFromPair
 
 instance IsListActionDefined AdditionalRules () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXNaturalOrNoneLanguage () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined Text () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LanguageToolOrg () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXLs () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXLsLogLevel () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined JavaConfig () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined Int () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXDiagnosticSeverity () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined LTeXCheckFrequency () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined Trace () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
 
 instance IsListActionDefined TraceServerMode () where
-    doAppend = unsupportedAppend
-    doRemove = unsupportedRemove
+    doAppend            = unsupportedAppend
+    doRemove            = unsupportedRemove
+    initialiseForAppend = unsupportedInitialiseAppend
     
 configPathFromText :: Text -> Maybe SomeConfigPath
 configPathFromText input =
@@ -279,70 +313,76 @@ configPathFromText input =
         decodeRestAsNatLang   = parseMaybe parseJSON . String . unsplitRest
         decodeRestAsTargetKey = parseMaybe parseJSON . String . unsplitRest
 
-data ConfigPathLensError = ValueNotFound | InvalidConfigForPath deriving (Show, Eq)
+data ConfigPathAccess a = PathFound     (Lens' LTeXConfig a)
+                        | ValueNotFound (a -> LTeXConfig -> LTeXConfig)
+                        | InvalidConfigForPath
 
-configPathLens :: ConfigPath a b -> LTeXConfig -> Either ConfigPathLensError (Lens' LTeXConfig a)
+configPathLens :: ConfigPath a b -> LTeXConfig -> ConfigPathAccess a
 configPathLens confPath currentConf = case confPath of
-    Enabled                         -> Right enabled
-    Language                        -> Right language
+    Enabled                         -> PathFound enabled
+    Language                        -> PathFound language
     (Dictionary x)                  -> dictionary `atExisting` x
-    DictionaryAll                   -> Right dictionary
+    DictionaryAll                   -> PathFound dictionary
     (DisabledRules x)               -> disabledRules `atExisting` x
-    DisabledRulesAll                -> Right disabledRules
+    DisabledRulesAll                -> PathFound disabledRules
     (EnabledRules x)                -> enabledRules `atExisting` x
-    EnabledRulesAll                 -> Right enabledRules
+    EnabledRulesAll                 -> PathFound enabledRules
     (HiddenFalsePositives x)        -> hiddenFalsePositives `atExisting` x
-    HiddenFalsePositivesAll         -> Right hiddenFalsePositives
-    BibTeXAll                       -> Right bibtex
+    HiddenFalsePositivesAll         -> PathFound hiddenFalsePositives
+    BibTeXAll                       -> PathFound bibtex
     (BibTeXFields x)                -> (bibtex . fields) `atExisting` x
-    BibTeXFieldsAll                 -> Right (bibtex . fields)
-    LaTeXAll                        -> Right latex
+    BibTeXFieldsAll                 -> PathFound (bibtex . fields)
+    LaTeXAll                        -> PathFound latex
     (LaTeXCommands x)               -> (latex . commands) `atExisting` x
-    LaTeXCommandsAll                -> Right (latex . commands)
+    LaTeXCommandsAll                -> PathFound (latex . commands)
     (LaTeXEnvironments x)           -> (latex . environments) `atExisting` x
-    LaTeXEnvironmentsAll            -> Right (latex . environments)
-    MarkdownAll                     -> Right markdown
+    LaTeXEnvironmentsAll            -> PathFound (latex . environments)
+    MarkdownAll                     -> PathFound markdown
     (MarkdownNodes x)               -> (markdown . nodes) `atExisting` x
-    MarkdownNodesAll                -> Right (markdown . nodes)
+    MarkdownNodesAll                -> PathFound (markdown . nodes)
     (ConfigurationTarget x)         -> configurationTarget `atExisting` x
-    ConfigurationTargetAll          -> Right configurationTarget
-    AdditionalRulesAll              -> Right additionalRules
-    AdditionalRulesEnablePickyRules -> Right (additionalRules . enablePickyRules)
-    AdditionalRulesMotherTongue     -> Right (additionalRules . motherTongue)
-    AdditionalRulesLanguageModel    -> Right (additionalRules . languageModel)
-    LanguageToolHttpServerUri       -> Right languageToolHttpServerUri
-    LanguageToolOrgAll              -> Right languageToolOrg
-    LanguageToolOrgUsername         -> Right (languageToolOrg . username)
-    LanguageToolOrgApiKey           -> Right (languageToolOrg . apiKey)
-    LTeXLsAll                       -> Right ltexLs
-    LTeXLsPath                      -> Right (ltexLs . ltexLsPath)
-    LTeXLsLogLevel                  -> Right (ltexLs . logLevel)
-    JavaAll                         -> Right java
-    JavaPath                        -> Right (java . javaPath)
-    JavaInitialHeapSize             -> Right (java . initialHeapSize)
-    JavaMaximumHeapSize             -> Right (java . maximumHeapSize)
-    SentenceCacheSize               -> Right sentenceCacheSize
-    MaxRequestSize                  -> Right maxRequestSize
-    ParagraphCacheTtlMinutes        -> Right paragraphCacheTtlMinutes
-    ParagraphCacheEnabled           -> Right paragraphCacheEnabled
-    CompletionEnabled               -> Right completionEnabled
-    DiagnosticSeverity              -> Right diagnosticSeverity
-    CheckFrequency                  -> Right checkFrequency
-    ClearDiagnosticsWhenClosingFile -> Right clearDiagnosticsWhenClosingFile
-    StatusBarItem                   -> Right statusBarItem
-    TraceAll                        -> Right trace
-    TraceServer                     -> Right (trace . server)
+    ConfigurationTargetAll          -> PathFound configurationTarget
+    AdditionalRulesAll              -> PathFound additionalRules
+    AdditionalRulesEnablePickyRules -> PathFound (additionalRules . enablePickyRules)
+    AdditionalRulesMotherTongue     -> PathFound (additionalRules . motherTongue)
+    AdditionalRulesLanguageModel    -> PathFound (additionalRules . languageModel)
+    LanguageToolHttpServerUri       -> PathFound languageToolHttpServerUri
+    LanguageToolOrgAll              -> PathFound languageToolOrg
+    LanguageToolOrgUsername         -> PathFound (languageToolOrg . username)
+    LanguageToolOrgApiKey           -> PathFound (languageToolOrg . apiKey)
+    LTeXLsAll                       -> PathFound ltexLs
+    LTeXLsPath                      -> PathFound (ltexLs . ltexLsPath)
+    LTeXLsLogLevel                  -> PathFound (ltexLs . logLevel)
+    JavaAll                         -> PathFound java
+    JavaPath                        -> PathFound (java . javaPath)
+    JavaInitialHeapSize             -> PathFound (java . initialHeapSize)
+    JavaMaximumHeapSize             -> PathFound (java . maximumHeapSize)
+    SentenceCacheSize               -> PathFound sentenceCacheSize
+    MaxRequestSize                  -> PathFound maxRequestSize
+    ParagraphCacheTtlMinutes        -> PathFound paragraphCacheTtlMinutes
+    ParagraphCacheEnabled           -> PathFound paragraphCacheEnabled
+    CompletionEnabled               -> PathFound completionEnabled
+    DiagnosticSeverity              -> PathFound diagnosticSeverity
+    CheckFrequency                  -> PathFound checkFrequency
+    ClearDiagnosticsWhenClosingFile -> PathFound clearDiagnosticsWhenClosingFile
+    StatusBarItem                   -> PathFound statusBarItem
+    TraceAll                        -> PathFound trace
+    TraceServer                     -> PathFound (trace . server)
     where
         atExisting :: Ord k
                    => Lens' LTeXConfig (Map k v)
                    -> k
-                   -> Either ConfigPathLensError (Lens' LTeXConfig v)
+                   -> ConfigPathAccess v
         atExisting l key =
             case view (l . at key) currentConf of
-                Nothing -> Left ValueNotFound
-                Just _  -> Right $ lens
-                    (\s' -> fromJust (view (l . at key) s'))
-                    (\s' v' -> set (l . at key) (Just v') s')
+                Nothing ->
+                    let setter = \val conf -> set (l . at key) (Just val) conf in
+                        ValueNotFound setter
+
+                Just _  ->
+                    PathFound $ lens
+                        (\s' -> fromJust (view (l . at key) s'))
+                        (\s' v' -> set (l . at key) (Just v') s')
 
 getLTeXConfigOrDefault :: FilePath -> IO (Either String LTeXConfig)
 getLTeXConfigOrDefault projRoot =
@@ -361,15 +401,23 @@ withLTeXConfig projRoot programme =
         Right config -> programme config
         Left  err    -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
 
-getLTeXConfigValue :: ConfigPath a b -> LTeXConfig -> Either ConfigPathLensError a
-getLTeXConfigValue configPath currentConf =
-    configPathLens configPath currentConf >>= \pathLens ->
-        Right (view pathLens currentConf)
+data GetLTeXConfigValueError = GetLTeXConfigValueNotFound | GetLTeXConfigValueConfigInvalid
 
-setLTeXConfigValue :: ConfigPath a b -> a -> LTeXConfig -> Either ConfigPathLensError LTeXConfig
+getLTeXConfigValue :: ConfigPath a b -> LTeXConfig -> Either GetLTeXConfigValueError a
+getLTeXConfigValue configPath currentConf =
+    case configPathLens configPath currentConf of
+        PathFound pathLens   -> Right (view pathLens currentConf)
+        ValueNotFound _      -> Left  GetLTeXConfigValueNotFound
+        InvalidConfigForPath -> Left  GetLTeXConfigValueConfigInvalid
+
+data SetLTeXConfigValueError = SetLTeXConfigValueConfigInvalid
+
+setLTeXConfigValue :: ConfigPath a b -> a -> LTeXConfig -> Either SetLTeXConfigValueError LTeXConfig
 setLTeXConfigValue configPath newValue currentConf =
-    configPathLens configPath currentConf >>= \pathLens ->
-        Right (set pathLens newValue currentConf)
+    case configPathLens configPath currentConf of
+        PathFound pathLens   -> Right (set pathLens newValue currentConf)
+        ValueNotFound setter -> Right (setter newValue currentConf)
+        InvalidConfigForPath -> Left  SetLTeXConfigValueConfigInvalid
 
 parseConfigValue :: FromJSON a => Text -> Either String a
 parseConfigValue input =
@@ -408,6 +456,9 @@ unsupportedAppend _ _ = Left AppendNotSupported
 unsupportedRemove :: a -> b -> Either RemoveError a
 unsupportedRemove _ _ = Left RemoveNotSupported
 
+unsupportedInitialiseAppend :: b -> Either AppendInitialiseError a
+unsupportedInitialiseAppend _ = Left AppendInitialiseNotSupported
+
 typicalAppendList :: Eq a => [a] -> a -> Either AppendError [a]
 typicalAppendList list newItem =
     case newItem `elem` list of
@@ -432,4 +483,6 @@ typicalRemoveMap currentMap (targetKey, _) =
         True  -> Right (Map.delete targetKey currentMap)
         False -> Left ItemNotInList
         
+makeMapFromPair :: (a, b) -> Map a b
+makeMapFromPair (a, b) = Map.singleton a b
 
