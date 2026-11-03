@@ -115,40 +115,81 @@ main :: IO ()
 main = execParser commandLineParser >>= \case
     (GetCommand texFilePath (SomeConfigPath configPath)) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
-            BS.putStr $ showItemInJson (getLTeXConfigValue configPath currentConf)
+            case getLTeXConfigValue configPath currentConf of
+                Right currentVal ->
+                    BS.putStr $ showItemInJson currentVal
+
+                Left ValueNotFound ->
+                    putStrLn "The configuration path was inaccesible." >>
+                        exitFailure
+
+                Left InvalidConfigForPath ->
+                    putStrLn "Current configuration is invalid for this path." >>
+                        exitFailure
 
     (SetCommand texFilePath (SomeConfigPath configPath) stringValue) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
             withValueTypeA configPath stringValue $ \jsonValue ->
-                BS.putStr $ showConfigInJson (setLTeXConfigValue configPath jsonValue currentConf)
+                case setLTeXConfigValue configPath jsonValue currentConf of
+                    Right newConfig ->
+                        BS.putStr $ showConfigInJson newConfig
+
+                    Left ValueNotFound ->
+                        putStrLn "The configuration path was inaccesible." >>
+                            exitFailure
+
+                    Left InvalidConfigForPath ->
+                        putStrLn "Current configuration is invalid for this path." >>
+                            exitFailure
 
     (AddCommand texFilePath (SomeConfigPath configPath) stringValue) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
             withValueTypeB configPath stringValue $ \jsonValue ->
-                case doAppend (getLTeXConfigValue configPath currentConf) jsonValue of
-                    Right jsonValue' ->
-                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath jsonValue' currentConf)
+                case getLTeXConfigValue configPath currentConf of
+                    Right currentVal ->
+                        case doAppend currentVal jsonValue of
+                            Right newVal -> do
+                                Right newConfig <- pure $ setLTeXConfigValue configPath newVal currentConf
+                                BS.putStr $ showConfigInJson newConfig
 
-                    Left AppendNotSupported ->
-                        putStrLn "Command add is not supported for this path." >>
+                            Left AppendNotSupported ->
+                                putStrLn "Command add is not supported for this path." >>
+                                    exitFailure
+
+                            Left ItemAlreadyInList ->
+                                putStrLn "The item is already registered."
+
+                    Left ValueNotFound ->
+                        pure ()
+
+                    Left InvalidConfigForPath ->
+                        putStrLn "Current configuration is invalid for this path." >>
                             exitFailure
-
-                    Left ItemAlreadyInList ->
-                        putStrLn "The item is already registered."
 
     (RemoveCommand texFilePath (SomeConfigPath configPath) stringValue) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
             withValueTypeB configPath stringValue $ \jsonValue ->
-                case doRemove (getLTeXConfigValue configPath currentConf) jsonValue of
-                    Right jsonValue' ->
-                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath jsonValue' currentConf)
+                case getLTeXConfigValue configPath currentConf of
+                    Right currentVal ->
+                        case doRemove currentVal jsonValue of
+                            Right newVal -> do
+                                Right newConfig <- pure $ setLTeXConfigValue configPath newVal currentConf
+                                BS.putStr $ showConfigInJson newConfig
 
-                    Left RemoveNotSupported ->
-                        putStrLn "Command remove is not supported for this path." >>
+                            Left RemoveNotSupported ->
+                                putStrLn "Command remove is not supported for this path." >>
+                                    exitFailure
+
+                            Left ItemNotInList ->
+                                putStrLn "The item was not registered."
+
+                    Left ValueNotFound ->
+                        putStrLn "The configuration path was inaccesible." >>
                             exitFailure
 
-                    Left ItemNotInList ->
-                        putStrLn "The item was not registered."
+                    Left InvalidConfigForPath ->
+                        putStrLn "Current configuration is invalid for this path." >>
+                            exitFailure
 
     (ProjectRootCommand texFilePath) ->
         withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->
