@@ -41,16 +41,20 @@ import System.Exit (exitFailure)
 
 import LTeXConfigTypes
 
+data LTeXCurrentOrNaturalLanguage = LTeXCurrentOrNaturalLanguageCurrent
+                                  | LTeXCurrentOrNaturalLanguageNatural LTeXNaturalLanguage
+                                  deriving (Show, Eq)
+
 data ConfigPath a b where
     Enabled                         :: ConfigPath LTeXEnabled                                                   LTeXEnabled
     Language                        :: ConfigPath LTeXNaturalOrAutoDetectLanguage                               ()
-    Dictionary                      :: LTeXNaturalLanguage -> ConfigPath [Text]                                 Text
+    Dictionary                      :: LTeXCurrentOrNaturalLanguage -> ConfigPath [Text]                        Text
     DictionaryAll                   :: ConfigPath (Map LTeXNaturalLanguage [Text])                              (LTeXNaturalLanguage, [Text])
-    DisabledRules                   :: LTeXNaturalLanguage -> ConfigPath [Text]                                 Text
+    DisabledRules                   :: LTeXCurrentOrNaturalLanguage -> ConfigPath [Text]                        Text
     DisabledRulesAll                :: ConfigPath (Map LTeXNaturalLanguage [Text])                              (LTeXNaturalLanguage, [Text])
-    EnabledRules                    :: LTeXNaturalLanguage -> ConfigPath [Text]                                 Text
+    EnabledRules                    :: LTeXCurrentOrNaturalLanguage -> ConfigPath [Text]                        Text
     EnabledRulesAll                 :: ConfigPath (Map LTeXNaturalLanguage [Text])                              (LTeXNaturalLanguage, [Text])
-    HiddenFalsePositives            :: LTeXNaturalLanguage -> ConfigPath [HiddenFalsePositivesValue]            HiddenFalsePositivesValue
+    HiddenFalsePositives            :: LTeXCurrentOrNaturalLanguage -> ConfigPath [HiddenFalsePositivesValue]   HiddenFalsePositivesValue
     HiddenFalsePositivesAll         :: ConfigPath (Map LTeXNaturalLanguage [HiddenFalsePositivesValue])         (LTeXNaturalLanguage, [HiddenFalsePositivesValue])
     BibTeXAll                       :: ConfigPath BibTeXConfig                                                  ()
     BibTeXFields                    :: Text -> ConfigPath Bool                                                  ()
@@ -259,13 +263,17 @@ configPathFromText input =
         ["enabled"]                               -> Just (SomeConfigPath Enabled)
         ["language"]                              -> Just (SomeConfigPath Language)
         ["dictionary"]                            -> Just (SomeConfigPath DictionaryAll)
-        ("dictionary" : rest : rest')             -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . Dictionary
+        ["dictionary", "currentLang"]             -> Just (SomeConfigPath (Dictionary LTeXCurrentOrNaturalLanguageCurrent))
+        ("dictionary" : rest : rest')             -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . Dictionary . LTeXCurrentOrNaturalLanguageNatural
         ["disabledRules"]                         -> Just (SomeConfigPath DisabledRulesAll)
-        ("disabledRules" : rest : rest')          -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . DisabledRules
+        ["disabledRules", "currentLang"]          -> Just (SomeConfigPath (DisabledRules LTeXCurrentOrNaturalLanguageCurrent))
+        ("disabledRules" : rest : rest')          -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . DisabledRules . LTeXCurrentOrNaturalLanguageNatural
         ["enabledRules"]                          -> Just (SomeConfigPath EnabledRulesAll)
-        ("enabledRules" : rest : rest')           -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . EnabledRules
+        ["enabledRules", "currentLang"]           -> Just (SomeConfigPath (EnabledRules LTeXCurrentOrNaturalLanguageCurrent))
+        ("enabledRules" : rest : rest')           -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . EnabledRules . LTeXCurrentOrNaturalLanguageNatural
         ["hiddenFalsePositives"]                  -> Just (SomeConfigPath HiddenFalsePositivesAll)
-        ("hiddenFalsePositives" : rest : rest')   -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . HiddenFalsePositives
+        ["hiddenFalsePositives", "currentLang"]   -> Just (SomeConfigPath (HiddenFalsePositives LTeXCurrentOrNaturalLanguageCurrent))
+        ("hiddenFalsePositives" : rest : rest')   -> decodeRestAsNatLang (rest : rest') >>= pure . SomeConfigPath . HiddenFalsePositives . LTeXCurrentOrNaturalLanguageNatural
         ["bibtex"]                                -> Just (SomeConfigPath BibTeXAll)
         ["bibtex", "fields"]                      -> Just (SomeConfigPath BibTeXFieldsAll)
         ("bibtex" : "fields" : rest : rest')      -> Just (SomeConfigPath (BibTeXFields      (unsplitRest (rest : rest'))))
@@ -322,13 +330,13 @@ accessConfigPath :: ConfigPath a b -> LTeXConfig -> ConfigPathAccess a
 accessConfigPath confPath currentConf = case confPath of
     Enabled                         -> PathFound enabled
     Language                        -> PathFound language
-    (Dictionary x)                  -> dictionary `atExisting` x
+    (Dictionary x)                  -> resolveCurrentOrNatLang x (dictionary `atExisting`)
     DictionaryAll                   -> PathFound dictionary
-    (DisabledRules x)               -> disabledRules `atExisting` x
+    (DisabledRules x)               -> resolveCurrentOrNatLang x (disabledRules `atExisting`)
     DisabledRulesAll                -> PathFound disabledRules
-    (EnabledRules x)                -> enabledRules `atExisting` x
+    (EnabledRules x)                -> resolveCurrentOrNatLang x (enabledRules `atExisting`)
     EnabledRulesAll                 -> PathFound enabledRules
-    (HiddenFalsePositives x)        -> hiddenFalsePositives `atExisting` x
+    (HiddenFalsePositives x)        -> resolveCurrentOrNatLang x (hiddenFalsePositives `atExisting`)
     HiddenFalsePositivesAll         -> PathFound hiddenFalsePositives
     BibTeXAll                       -> PathFound bibtex
     (BibTeXFields x)                -> (bibtex . fields) `atExisting` x
@@ -370,6 +378,15 @@ accessConfigPath confPath currentConf = case confPath of
     TraceAll                        -> PathFound trace
     TraceServer                     -> PathFound (trace . server)
     where
+        resolveCurrentOrNatLang :: LTeXCurrentOrNaturalLanguage
+                                -> (LTeXNaturalLanguage -> ConfigPathAccess a)
+                                -> ConfigPathAccess a
+        resolveCurrentOrNatLang (LTeXCurrentOrNaturalLanguageNatural natLang) f = f natLang
+        resolveCurrentOrNatLang LTeXCurrentOrNaturalLanguageCurrent f =
+            case view language currentConf of
+                (LTeXNaturalOrAutoDetectLanguageAuto _)          -> InvalidConfigForPath
+                (LTeXNaturalOrAutoDetectLanguageNatural natLang) -> f natLang
+
         atExisting :: Ord k
                    => Lens' LTeXConfig (Map k v)
                    -> k
