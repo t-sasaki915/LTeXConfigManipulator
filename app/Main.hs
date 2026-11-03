@@ -6,7 +6,7 @@ import qualified Data.Text as Text
 import Options.Applicative
 import System.Directory
 import System.FilePath ((</>), takeDirectory)
-import System.Exit (exitFailure)
+import System.Exit (exitFailure, exitSuccess)
 
 import Types
 
@@ -78,6 +78,13 @@ withLTeXConfigAndProjectRoot texFilePath programme =
         withLTeXConfig projRoot $ \ltexConfig ->
             programme (ltexConfig, projRoot)
 
+writeLTeXConfig :: LTeXConfig -> ProjectRootPath -> IO ()
+writeLTeXConfig newConfig (ProjectRootPath projRoot) =
+    let ltexDir = projRoot </> ".ltex"
+        configFile = ltexDir </> "config.json" in
+            createDirectoryIfMissing True ltexDir >>
+                BS.writeFile configFile (showItemInJson (removeDefaultValues newConfig))
+
 data Command = GetCommand             TeXFilePath SomeConfigPath
              | SetCommand             TeXFilePath SomeConfigPath Text
              | AddCommand             TeXFilePath SomeConfigPath Text
@@ -134,7 +141,8 @@ main = execParser commandLineParser >>= \case
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
             case getLTeXConfigValue configPath currentConf of
                 Right currentVal ->
-                    BS.putStr $ showItemInJson currentVal
+                    BS.putStr (showItemInJson currentVal) >>
+                        exitSuccess
 
                 Left GetLTeXConfigValueNotFound ->
                     putStrLn "The configuration path was inaccesible." >>
@@ -145,38 +153,45 @@ main = execParser commandLineParser >>= \case
                         exitFailure
 
     (SetCommand texFilePath (SomeConfigPath configPath) stringValue) ->
-        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, projRoot) ->
             withValueTypeA configPath stringValue $ \jsonValue ->
                 case setLTeXConfigValue configPath jsonValue currentConf of
-                    Right newConfig ->
-                        BS.putStr $ showConfigInJson newConfig
+                    Right newConfig -> do
+                        writeLTeXConfig newConfig projRoot
+                        putStrLn "The value of the path has been updated."
+                        exitSuccess
 
                     Left SetLTeXConfigValueConfigInvalid ->
                         putStrLn "Current configuration is invalid for this path." >>
                             exitFailure
 
     (AddCommand texFilePath (SomeConfigPath configPath) stringValue) ->
-        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, projRoot) ->
             withValueTypeB configPath stringValue $ \jsonValue ->
                 case getLTeXConfigValue configPath currentConf of
                     Right currentVal ->
                         case doAppend currentVal jsonValue of
                             Right newVal -> do
                                 Right newConfig <- pure $ setLTeXConfigValue configPath newVal currentConf
-                                BS.putStr $ showConfigInJson newConfig
+                                writeLTeXConfig newConfig projRoot
+                                putStrLn "The value is added to the path."
+                                exitSuccess
 
                             Left AppendNotSupported ->
                                 putStrLn "Command add is not supported for this path." >>
                                     exitFailure
 
                             Left ItemAlreadyInList ->
-                                putStrLn "The item is already registered."
+                                putStrLn "The item is already registered." >>
+                                    exitSuccess
 
                     Left GetLTeXConfigValueNotFound ->
                         case initialiseForAppend jsonValue of
                             Right newVal -> do
                                 Right newConfig <- pure $ setLTeXConfigValue configPath newVal currentConf
-                                BS.putStr $ showConfigInJson newConfig
+                                writeLTeXConfig newConfig projRoot
+                                putStrLn "The value is added to the path."
+                                exitSuccess
 
                             Left AppendInitialiseNotSupported ->
                                 putStrLn "Command add is not supported for this path." >>
@@ -187,21 +202,24 @@ main = execParser commandLineParser >>= \case
                             exitFailure
 
     (RemoveCommand texFilePath (SomeConfigPath configPath) stringValue) ->
-        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
+        withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, projRoot) ->
             withValueTypeB configPath stringValue $ \jsonValue ->
                 case getLTeXConfigValue configPath currentConf of
                     Right currentVal ->
                         case doRemove currentVal jsonValue of
                             Right newVal -> do
                                 Right newConfig <- pure $ setLTeXConfigValue configPath newVal currentConf
-                                BS.putStr $ showConfigInJson newConfig
+                                writeLTeXConfig newConfig projRoot
+                                putStrLn "The value is removed from the path."
+                                exitSuccess
 
                             Left RemoveNotSupported ->
                                 putStrLn "Command remove is not supported for this path." >>
                                     exitFailure
 
                             Left ItemNotInList ->
-                                putStrLn "The item was not registered."
+                                putStrLn "The item was not registered." >>
+                                    exitSuccess
 
                     Left GetLTeXConfigValueNotFound ->
                         putStrLn "The configuration path was inaccesible." >>
@@ -213,9 +231,11 @@ main = execParser commandLineParser >>= \case
 
     (ProjectRootCommand texFilePath) ->
         withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->
-            putStrLn projRoot
+            putStrLn projRoot >>
+                exitSuccess
 
     (WorkspaceConfigCommand texFilePath) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
-            BS.putStr (showItemInJson (removeDefaultValues currentConf))
+            BS.putStr (showConfigInJson currentConf) >>
+                exitSuccess
 
