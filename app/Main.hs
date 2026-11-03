@@ -3,9 +3,10 @@ module Main (main) where
 import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Options.Applicative hiding (Success)
+import Options.Applicative
 import System.Directory
 import System.FilePath ((</>), takeDirectory)
+import System.Exit (exitFailure)
 
 import Types
 
@@ -116,36 +117,38 @@ main = execParser commandLineParser >>= \case
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
             BS.putStr $ showItemInJson (getLTeXConfigValue configPath currentConf)
 
-    (SetCommand texFilePath (SomeConfigPath configPath) configValue) ->
+    (SetCommand texFilePath (SomeConfigPath configPath) stringValue) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
-            withValueTypeA configPath configValue $ \configValue' ->
-                BS.putStr $ showConfigInJson (setLTeXConfigValue configPath configValue' currentConf)
+            withValueTypeA configPath stringValue $ \jsonValue ->
+                BS.putStr $ showConfigInJson (setLTeXConfigValue configPath jsonValue currentConf)
 
-    (AddCommand texFilePath (SomeConfigPath configPath) configValue) ->
+    (AddCommand texFilePath (SomeConfigPath configPath) stringValue) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
-            withValueTypeB configPath configValue $ \configValue' ->
-                case doAppend (getLTeXConfigValue configPath currentConf) configValue' of
-                    Right val' ->
-                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath val' currentConf)
+            withValueTypeB configPath stringValue $ \jsonValue ->
+                case doAppend (getLTeXConfigValue configPath currentConf) jsonValue of
+                    Right jsonValue' ->
+                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath jsonValue' currentConf)
 
                     Left AppendNotSupported ->
-                        putStrLn "APPEND NOT SUPPORTED!!"
+                        putStrLn "Command add is not supported for this path." >>
+                            exitFailure
 
                     Left ItemAlreadyInList ->
-                        putStrLn "ALREADY IN LIST!!"
+                        putStrLn "The item is already registered."
 
-    (RemoveCommand texFilePath (SomeConfigPath configPath) configValue) ->
+    (RemoveCommand texFilePath (SomeConfigPath configPath) stringValue) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
-            withValueTypeB configPath configValue $ \configValue' ->
-                case doRemove (getLTeXConfigValue configPath currentConf) configValue' of
-                    Right val' ->
-                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath val' currentConf)
+            withValueTypeB configPath stringValue $ \jsonValue ->
+                case doRemove (getLTeXConfigValue configPath currentConf) jsonValue of
+                    Right jsonValue' ->
+                        BS.putStr $ showConfigInJson (setLTeXConfigValue configPath jsonValue' currentConf)
 
                     Left RemoveNotSupported ->
-                        putStrLn "REMOVE NOT SUPPORTED!!"
+                        putStrLn "Command remove is not supported for this path." >>
+                            exitFailure
 
                     Left ItemNotInList ->
-                        putStrLn "ITEM NOT IN LIST!!"
+                        putStrLn "The item was not registered."
 
     (ProjectRootCommand texFilePath) ->
         withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->

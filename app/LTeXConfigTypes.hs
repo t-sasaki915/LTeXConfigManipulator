@@ -2,7 +2,7 @@
 
 module LTeXConfigTypes
     ( LTeXEnabled (..)
-    , LTeXNaturalOrAutoDetectLanguage
+    , LTeXNaturalOrAutoDetectLanguage (..)
     , LTeXNaturalLanguage
     , HiddenFalsePositivesValue
     , BibTeXConfig
