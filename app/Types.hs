@@ -12,7 +12,6 @@ module Types
     , RemoveError (..)
     , AppendInitialiseError (..)
     , IsListActionDefined (..)
-    , ConfigPathAccess (..)
     , GetLTeXConfigValueError (..)
     , SetLTeXConfigValueError (..)
     , withLTeXConfig
@@ -313,12 +312,14 @@ configPathFromText input =
         decodeRestAsNatLang   = parseMaybe parseJSON . String . unsplitRest
         decodeRestAsTargetKey = parseMaybe parseJSON . String . unsplitRest
 
+type LensSetter a = (a -> LTeXConfig -> LTeXConfig)
+
 data ConfigPathAccess a = PathFound     (Lens' LTeXConfig a)
-                        | ValueNotFound (a -> LTeXConfig -> LTeXConfig)
+                        | ValueNotFound (LensSetter a)
                         | InvalidConfigForPath
 
-configPathLens :: ConfigPath a b -> LTeXConfig -> ConfigPathAccess a
-configPathLens confPath currentConf = case confPath of
+accessConfigPath :: ConfigPath a b -> LTeXConfig -> ConfigPathAccess a
+accessConfigPath confPath currentConf = case confPath of
     Enabled                         -> PathFound enabled
     Language                        -> PathFound language
     (Dictionary x)                  -> dictionary `atExisting` x
@@ -405,7 +406,7 @@ data GetLTeXConfigValueError = GetLTeXConfigValueNotFound | GetLTeXConfigValueCo
 
 getLTeXConfigValue :: ConfigPath a b -> LTeXConfig -> Either GetLTeXConfigValueError a
 getLTeXConfigValue configPath currentConf =
-    case configPathLens configPath currentConf of
+    case accessConfigPath configPath currentConf of
         PathFound pathLens   -> Right (view pathLens currentConf)
         ValueNotFound _      -> Left  GetLTeXConfigValueNotFound
         InvalidConfigForPath -> Left  GetLTeXConfigValueConfigInvalid
@@ -414,7 +415,7 @@ data SetLTeXConfigValueError = SetLTeXConfigValueConfigInvalid
 
 setLTeXConfigValue :: ConfigPath a b -> a -> LTeXConfig -> Either SetLTeXConfigValueError LTeXConfig
 setLTeXConfigValue configPath newValue currentConf =
-    case configPathLens configPath currentConf of
+    case accessConfigPath configPath currentConf of
         PathFound pathLens   -> Right (set pathLens newValue currentConf)
         ValueNotFound setter -> Right (setter newValue currentConf)
         InvalidConfigForPath -> Left  SetLTeXConfigValueConfigInvalid
