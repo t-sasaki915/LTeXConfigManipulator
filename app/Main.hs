@@ -55,11 +55,28 @@ withProjectRoot texFilePath programme =
     searchForProjectRoot texFilePath >>=
         programme
 
+getLTeXConfigOrDefault :: ProjectRootPath -> IO (Either String LTeXConfig)
+getLTeXConfigOrDefault (ProjectRootPath projRoot) =
+    let configFilePath = projRoot </> ".ltex" </> "config.json" in
+        doesFileExist configFilePath >>= \case
+            True ->
+                BS.readFile configFilePath >>=
+                    pure . parseLTeXConfig
+
+            False ->
+                pure (Right defaultLTeXConfig)
+
+withLTeXConfig :: ProjectRootPath -> (LTeXConfig -> IO ()) -> IO ()
+withLTeXConfig projRoot programme =
+    getLTeXConfigOrDefault projRoot >>= \case
+        Right config -> programme config
+        Left  err    -> putStrLn ("Failed to parse config file\n" <> err) >> exitFailure
+
 withLTeXConfigAndProjectRoot :: TeXFilePath -> ((LTeXConfig, ProjectRootPath) -> IO()) -> IO ()
 withLTeXConfigAndProjectRoot texFilePath programme =
-    withProjectRoot texFilePath $ \(ProjectRootPath projRoot) ->
+    withProjectRoot texFilePath $ \projRoot ->
         withLTeXConfig projRoot $ \ltexConfig ->
-            programme (ltexConfig, ProjectRootPath projRoot)
+            programme (ltexConfig, projRoot)
 
 data Command = GetCommand             TeXFilePath SomeConfigPath
              | SetCommand             TeXFilePath SomeConfigPath Text
@@ -200,5 +217,5 @@ main = execParser commandLineParser >>= \case
 
     (WorkspaceConfigCommand texFilePath) ->
         withLTeXConfigAndProjectRoot texFilePath $ \(currentConf, _) ->
-            BS.putStr (showConfigInJson currentConf)
+            BS.putStr (showItemInJson (removeDefaultValues currentConf))
 

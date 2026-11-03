@@ -14,29 +14,29 @@ module Types
     , IsListActionDefined (..)
     , GetLTeXConfigValueError (..)
     , SetLTeXConfigValueError (..)
-    , withLTeXConfig
     , configPathFromText
     , getLTeXConfigValue
     , setLTeXConfigValue
     , withValueTypeA
     , withValueTypeB
+    , removeDefaultValues
+    , parseLTeXConfig
+    , defaultLTeXConfig
     , showConfigInJson
     , showItemInJson
     ) where
 
 import Control.Lens (at, view, set, lens, Lens')
 import Data.Aeson
+import qualified Data.Aeson.KeyMap as KM
 import Data.Aeson.Types
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BS
 import Data.Maybe (fromJust)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding (encodeUtf8)
-import System.Directory (doesFileExist)
-import System.FilePath ((</>))
 import System.Exit (exitFailure)
 
 import LTeXConfigTypes
@@ -402,23 +402,6 @@ accessConfigPath confPath currentConf = case confPath of
                         (\s' -> fromJust (view (l . at key) s'))
                         (\s' v' -> set (l . at key) (Just v') s')
 
-getLTeXConfigOrDefault :: FilePath -> IO (Either String LTeXConfig)
-getLTeXConfigOrDefault projRoot =
-    let configFilePath = projRoot </> ".ltex" </> "config.json" in
-        doesFileExist configFilePath >>= \case
-            True ->
-                BS.readFile configFilePath >>=
-                    pure . eitherDecode
-
-            False ->
-                pure (Right defaultLTeXConfig)
-
-withLTeXConfig :: FilePath -> (LTeXConfig -> IO ()) -> IO ()
-withLTeXConfig projRoot programme =
-    getLTeXConfigOrDefault projRoot >>= \case
-        Right config -> programme config
-        Left  err    -> putStrLn ("Failed to decode config file\n" <> err) >> exitFailure
-
 data GetLTeXConfigValueError = GetLTeXConfigValueNotFound | GetLTeXConfigValueConfigInvalid
 
 getLTeXConfigValue :: ConfigPath a b -> LTeXConfig -> Either GetLTeXConfigValueError a
@@ -461,6 +444,24 @@ withValueTypeB _ stringValue programme =
     case parseConfigValue stringValue of
         Right jsonValue -> programme jsonValue
         Left  err       -> putStrLn ("Failed to parse input:\n" <> err) >> exitFailure
+
+removeDefaultValues :: LTeXConfig -> Value
+removeDefaultValues ltexConfig =
+    case removeDefaultValues' (toJSON ltexConfig) (toJSON defaultLTeXConfig) of
+        Null -> Object KM.empty
+        x    -> x
+    where
+        removeDefaultValues' :: Value -> Value -> Value
+        removeDefaultValues' current defaultValue | current == defaultValue = Null
+        removeDefaultValues' (Object current) (Object defaults) =
+            let remaining = KM.filter (/= Null) $
+                    flip KM.mapWithKey current $ \key value ->
+                        maybe value (removeDefaultValues' value) (KM.lookup key defaults)
+            in if KM.null remaining then Null else Object remaining
+        removeDefaultValues' current _ = current
+
+parseLTeXConfig :: ByteString -> Either String LTeXConfig
+parseLTeXConfig = eitherDecode
 
 showConfigInJson :: LTeXConfig -> ByteString
 showConfigInJson = encode
