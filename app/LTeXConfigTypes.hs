@@ -2,6 +2,7 @@
 
 module LTeXConfigTypes
     ( LTeXEnabled (..)
+    , LTeXMarkupOrProgrammingLanguage
     , LTeXNaturalOrAutoDetectLanguage (..)
     , LTeXNaturalLanguage
     , HiddenFalsePositivesValue

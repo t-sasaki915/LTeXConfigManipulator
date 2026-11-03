@@ -46,7 +46,7 @@ data LTeXCurrentOrNaturalLanguage = LTeXCurrentOrNaturalLanguageCurrent
                                   deriving (Show, Eq)
 
 data ConfigPath a b where
-    Enabled                         :: ConfigPath LTeXEnabled                                                   LTeXEnabled
+    Enabled                         :: ConfigPath LTeXEnabled                                                   LTeXMarkupOrProgrammingLanguage
     Language                        :: ConfigPath LTeXNaturalOrAutoDetectLanguage                               ()
     Dictionary                      :: LTeXCurrentOrNaturalLanguage -> ConfigPath [Text]                        Text
     DictionaryAll                   :: ConfigPath (Map LTeXNaturalLanguage [Text])                              (LTeXNaturalLanguage, [Text])
@@ -110,12 +110,12 @@ class IsListActionDefined a b where
     doRemove            :: a -> b -> Either RemoveError a
     initialiseForAppend :: b -> Either AppendInitialiseError a
 
-instance IsListActionDefined LTeXEnabled LTeXEnabled where
-    doAppend (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (a <> b))
-    doAppend _ _                                       = Left AppendNotSupported
-    doRemove (LTeXEnabledArray a) (LTeXEnabledArray b) = Right (LTeXEnabledArray (filter (`notElem` b) a))
-    doRemove _ _                                       = Left RemoveNotSupported
-    initialiseForAppend                                = Right
+instance IsListActionDefined LTeXEnabled LTeXMarkupOrProgrammingLanguage where
+    doAppend (LTeXEnabledArray a) b = LTeXEnabledArray <$> typicalAppendList a b
+    doAppend _ _                    = Left AppendNotSupported
+    doRemove (LTeXEnabledArray a) b = LTeXEnabledArray <$> typicalRemoveList a b
+    doRemove _ _                    = Left RemoveNotSupported
+    initialiseForAppend b           = Right (LTeXEnabledArray [b])
 
 instance IsListActionDefined LTeXNaturalOrAutoDetectLanguage () where
     doAppend            = unsupportedAppend
