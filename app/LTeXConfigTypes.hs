@@ -387,13 +387,15 @@ instance FromJSON LTeXNoneLanguage where
 instance FromJSONKey LTeXNoneLanguage where
     fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
 
-data LTeXMarkupOrProgrammingLanguage = LTeXMarkupOrProgrammingLanguageMarkup      LTeXMarkupLanguage
-                                     | LTeXMarkupOrProgrammingLanguageProgramming LTeXProgrammingLanguage
+data LTeXMarkupOrProgrammingLanguage = LTeXMarkupOrProgrammingLanguageMarkup       LTeXMarkupLanguage
+                                     | LTeXMarkupOrProgrammingLanguageProgramming  LTeXProgrammingLanguage
+                                     | LTeXMarkupOrProgrammingLanguageUnidentified Text
                                      deriving (Show, Eq, Ord)
 
 instance ToJSON LTeXMarkupOrProgrammingLanguage where
-    toJSON (LTeXMarkupOrProgrammingLanguageMarkup x)      = toJSON x
-    toJSON (LTeXMarkupOrProgrammingLanguageProgramming x) = toJSON x
+    toJSON (LTeXMarkupOrProgrammingLanguageMarkup x)       = toJSON x
+    toJSON (LTeXMarkupOrProgrammingLanguageProgramming x)  = toJSON x
+    toJSON (LTeXMarkupOrProgrammingLanguageUnidentified x) = String x
 
 instance ToJSONKey LTeXMarkupOrProgrammingLanguage where
     toJSONKey = toJSONKeyText $ \x ->
@@ -403,8 +405,14 @@ instance ToJSONKey LTeXMarkupOrProgrammingLanguage where
 
 instance FromJSON LTeXMarkupOrProgrammingLanguage where
     parseJSON value =
-            (LTeXMarkupOrProgrammingLanguageMarkup <$> parseJSON value)
-        <|> (LTeXMarkupOrProgrammingLanguageProgramming <$> parseJSON value)
+            (LTeXMarkupOrProgrammingLanguageMarkup       <$> parseJSON value)
+        <|> (LTeXMarkupOrProgrammingLanguageProgramming  <$> parseJSON value)
+        <|> parseUnidentifiedLanguage
+        where
+            parseUnidentifiedLanguage =
+                case value of
+                    (String x) -> pure (LTeXMarkupOrProgrammingLanguageUnidentified x)
+                    x          -> fail ("Failed to parse LTeXMarkupOrProgrammingLanguage: " <> show x)
 
 instance FromJSONKey LTeXMarkupOrProgrammingLanguage where
     fromJSONKey = FromJSONKeyTextParser $ parseJSON . String
