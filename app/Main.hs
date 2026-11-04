@@ -133,7 +133,7 @@ commandParser =
 commandLineParser :: ParserInfo Command
 commandLineParser =
     info (commandParser <**> helper)
-        (fullDesc <> progDesc "A command-line tool for managing project-specific LTeX+ configurations with a focus on Vim integration.")
+        (fullDesc <> progDesc "A CLI tool for managing project-specific LTeX+ configurations and integrating them with editors.")
 
 main :: IO ()
 main = execParser commandLineParser >>= \case
