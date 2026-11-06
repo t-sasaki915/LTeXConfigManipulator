@@ -168,6 +168,35 @@ command! CorrectWord call s:LTeXCorrectWord()
 command! WrongWord call s:LTeXWrongWord()
 command! -nargs=1 LTeXSetLanguage call s:LTeXSetLanguage(<q-args>)
 ```
+The following Vimscript provides additional control over LTeX+ behaviour:
+```vim
+function! s:LTeXAddDisabledRule(ltexRule) abort
+    echo trim(system('LTeXConfigManipulator add disabledRules.currentLang '
+                \ . shellescape(a:ltexRule) . ' --texFile '
+                \ . shellescape(expand('%:p'))))
+endfunction
+
+function! s:LTeXRemoveDisabledRule(ltexRule) abort
+    echo trim(system('LTeXConfigManipulator remove disabledRules.currentLang '
+                \ . shellescape(a:ltexRule) . ' --texFile '
+                \ . shellescape(expand('%:p'))))
+endfunction
+
+function! s:LTeXSetCheckFreq(checkFreq) abort
+    echo trim(system('LTeXConfigManipulator set checkFrequency '
+                \ . shellescape(a:checkFreq) . ' --texFile '
+                \ . shellescape(expand('%:p'))))
+endfunction
+
+command! -nargs=1 LTeXAddDisabledRule call s:LTeXAddDisabledRule(<q-args>)
+command! -nargs=1 LTeXRemoveDisabledRule call s:LTeXRemoveDisabledRule(<q-args>)
+command! -nargs=1 LTeXSetCheckFreq call s:LTeXSetCheckFreq(<q-args>)
+```
+`:LTeXAddDisabledRule` and `:LTeXRemoveDisabledRule` manage the disabled rules for currently configured language.
+`:LTeXSetCheckFreq` changes the project's check frequency.
+<br><br>
+In particular, `:LTeXSetCheckFreq` allows the check frequency to be configured directly from Vim command interface, beyond what is directly supported by the official LTeX+ configuration API.
+<br><br>
 This approach keeps the Vimscript integration relatively simple while leaving configuration handling to LTeXConfigManipulator.
 <br><br>
 Unlike a general-purpose JSON editor, LTeXConfigManipulator understands the structure of LTeX+ configuration and provides dedicated operations for accessing and modifying individual settings.
